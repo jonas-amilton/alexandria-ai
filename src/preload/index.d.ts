@@ -1,8 +1,2 @@
-import { ElectronAPI } from '@electron-toolkit/preload'
-
-declare global {
-  interface Window {
-    electron: ElectronAPI
-    api: unknown
-  }
-}
+// Preload type declarations.
+// The window.deepdesk API shape is declared in src/renderer/src/global.d.ts.

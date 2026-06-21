@@ -1,22 +1,45 @@
-import { contextBridge } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
+import { contextBridge, ipcRenderer } from 'electron'
 
-// Custom APIs for renderer
-const api = {}
+import type {
+  ApiKeyStatus,
+  ChatCancelledPayload,
+  ChatDeltaPayload,
+  ChatDonePayload,
+  ChatErrorPayload,
+  ChatStartPayload
+} from '../shared/chat'
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('api', api)
-  } catch (error) {
-    console.error(error)
+function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
+  const listener = (_event: Electron.IpcRendererEvent, payload: T): void => {
+    callback(payload)
   }
-} else {
-  // @ts-ignore (define in dts)
-  window.electron = electronAPI
-  // @ts-ignore (define in dts)
-  window.api = api
+
+  ipcRenderer.on(channel, listener)
+
+  return () => {
+    ipcRenderer.removeListener(channel, listener)
+  }
 }
+
+contextBridge.exposeInMainWorld('deepdesk', {
+  settings: {
+    status: (): Promise<ApiKeyStatus> => ipcRenderer.invoke('settings:status'),
+    saveApiKey: (apiKey: string): Promise<ApiKeyStatus> =>
+      ipcRenderer.invoke('settings:save-api-key', apiKey),
+    clearApiKey: (): Promise<ApiKeyStatus> => ipcRenderer.invoke('settings:clear-api-key')
+  },
+  chat: {
+    start: (payload: ChatStartPayload): Promise<{ accepted: boolean }> =>
+      ipcRenderer.invoke('chat:start', payload),
+    cancel: (requestId: string): Promise<{ cancelled: boolean }> =>
+      ipcRenderer.invoke('chat:cancel', requestId),
+    onDelta: (callback: (payload: ChatDeltaPayload) => void): (() => void) =>
+      subscribe('chat:delta', callback),
+    onDone: (callback: (payload: ChatDonePayload) => void): (() => void) =>
+      subscribe('chat:done', callback),
+    onError: (callback: (payload: ChatErrorPayload) => void): (() => void) =>
+      subscribe('chat:error', callback),
+    onCancelled: (callback: (payload: ChatCancelledPayload) => void): (() => void) =>
+      subscribe('chat:cancelled', callback)
+  }
+})
