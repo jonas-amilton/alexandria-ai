@@ -3,22 +3,30 @@ import { useState, useEffect, useCallback } from 'react'
 import type { ApiKeyStatus as ApiKeyStatusType } from '../../shared/chat'
 
 import useChat from './features/chat/hooks/useChat'
+import Sidebar from './features/chat/components/Sidebar'
+import MobileDrawer from './features/chat/components/MobileDrawer'
 import ChatHeader from './features/chat/components/ChatHeader'
 import MessageList from './features/chat/components/MessageList'
 import ChatComposer from './features/chat/components/ChatComposer'
-import ApiKeyStatus from './features/settings/components/ApiKeyStatus'
+import ApiKeyInput from './features/settings/components/ApiKeyInput'
 import ResetApiKeyButton from './features/settings/components/ResetApiKeyButton'
+
+const MODEL_NAME = 'Alexandria.AI'
 
 // ── App ─────────────────────────────────────────────────────────────────────
 
 function App(): React.JSX.Element {
+  // ── Mobile drawer ──────────────────────────────────────────────────────
+
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+
   // ── Settings state ─────────────────────────────────────────────────────
 
   const [apiKeyStatus, setApiKeyStatus] = useState<ApiKeyStatusType | null>(null)
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [settingsError, setSettingsError] = useState<string | null>(null)
 
-  // ── Chat (all state + streaming lives in the hook) ─────────────────────
+  // ── Chat ───────────────────────────────────────────────────────────────
 
   const chat = useChat()
 
@@ -76,97 +84,93 @@ function App(): React.JSX.Element {
     setSettingsError(null)
   }, [])
 
-  // ── Combined error display ─────────────────────────────────────────────
+  // ── Derived ────────────────────────────────────────────────────────────
 
   const displayError = chat.error ?? settingsError
 
   // ── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen flex-col bg-gray-900 text-gray-100">
-      <ChatHeader>
-        <ApiKeyStatus status={apiKeyStatus} />
-      </ChatHeader>
+    <div className="w-full flex h-screen overflow-hidden bg-[var(--app-bg)] text-[var(--app-text)]">
+      {/* Desktop sidebar */}
+      <div className="hidden md:block">
+        <Sidebar activeTitle={chat.conversationTitle} onNewChat={chat.handleNewChat} />
+      </div>
 
-      {/* API Key Input (only when not set) */}
-      {apiKeyStatus !== null && !apiKeyStatus.set && (
-        <div className="border-b border-gray-700 px-4 py-3">
-          <div className="flex gap-2">
-            <input
-              type="password"
-              className="flex-1 rounded bg-gray-800 px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="sk-…"
-              value={apiKeyInput}
-              onChange={(e) => {
-                setApiKeyInput(e.target.value)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  void handleSaveApiKey()
-                }
-              }}
-            />
+      {/* Mobile drawer */}
+      <MobileDrawer open={mobileDrawerOpen} onClose={() => setMobileDrawerOpen(false)}>
+        <Sidebar
+          activeTitle={chat.conversationTitle}
+          onNewChat={chat.handleNewChat}
+          onToggleMobile={() => setMobileDrawerOpen(false)}
+        />
+      </MobileDrawer>
 
+      {/* Main area */}
+      <main className="flex min-w-0 flex-1 flex-col bg-[var(--app-bg)]">
+        {/* Header */}
+        <ChatHeader
+          title={chat.conversationTitle}
+          modelName={MODEL_NAME}
+          onToggleMobileMenu={() => setMobileDrawerOpen(true)}
+        />
+
+        {/* API Key Input (only when not set) */}
+        {apiKeyStatus !== null && !apiKeyStatus.set && (
+          <ApiKeyInput
+            value={apiKeyInput}
+            onChange={setApiKeyInput}
+            onSave={handleSaveApiKey}
+            canPersist={apiKeyStatus.canPersist}
+          />
+        )}
+
+        {/* Clear API Key (only when set) */}
+        {apiKeyStatus !== null && apiKeyStatus.set && (
+          <ResetApiKeyButton onClear={handleClearApiKey} />
+        )}
+
+        {/* Error banner */}
+        {displayError !== null && (
+          <div className="flex-shrink-0 border-b border-red-900/60 bg-red-950/30 px-5 py-2 text-[11px] text-red-300 lg:px-6">
+            {displayError}
             <button
               type="button"
-              className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
-              disabled={!apiKeyInput.trim()}
+              className="ml-3 text-red-400 transition-colors hover:text-red-200"
               onClick={() => {
-                void handleSaveApiKey()
+                chat.clearError()
+                setSettingsError(null)
               }}
             >
-              Salvar
+              Dispensar
             </button>
-
-            {apiKeyStatus?.canPersist === false && (
-              <span className="self-center text-xs text-red-400">
-                Linux: encryption not available (use GNOME Keyring or KDE Wallet)
-              </span>
-            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Clear API Key (only when set) */}
-      {apiKeyStatus !== null && apiKeyStatus.set && (
-        <ResetApiKeyButton onClear={handleClearApiKey} />
-      )}
+        {/* Messages */}
+        <MessageList
+          messages={chat.messages}
+          streamingContent={chat.streamingContent}
+          onFillInput={(text) => {
+            chat.setMessageInput(text)
+          }}
+        />
 
-      {/* Error banner */}
-      {displayError !== null && (
-        <div className="border-b border-red-800 bg-red-900/50 px-4 py-2 text-sm text-red-300">
-          {displayError}
-          <button
-            type="button"
-            className="ml-3 text-red-400 hover:text-red-200"
-            onClick={() => {
-              chat.clearError()
-              setSettingsError(null)
-            }}
-          >
-            Cancelar
-          </button>
-        </div>
-      )}
-
-      {/* Messages */}
-      <MessageList messages={chat.messages} streamingContent={chat.streamingContent} />
-
-      {/* Input */}
-      <ChatComposer
-        value={chat.messageInput}
-        disabled={chat.isLoading}
-        isLoading={chat.isLoading}
-        onChange={chat.setMessageInput}
-        onSubmit={() => {
-          void chat.handleSend()
-        }}
-        onCancel={() => {
-          void chat.handleCancel()
-        }}
-        onKeyDown={chat.handleKeyDown}
-      />
+        {/* Composer */}
+        <ChatComposer
+          value={chat.messageInput}
+          disabled={chat.isLoading}
+          isLoading={chat.isLoading}
+          onChange={chat.setMessageInput}
+          onSubmit={() => {
+            void chat.handleSend()
+          }}
+          onCancel={() => {
+            void chat.handleCancel()
+          }}
+          onKeyDown={chat.handleKeyDown}
+        />
+      </main>
     </div>
   )
 }

@@ -4,10 +4,10 @@ interface ResetApiKeyButtonProps {
 
 function ResetApiKeyButton({ onClear }: ResetApiKeyButtonProps): React.JSX.Element {
   return (
-    <div className="border-b border-gray-700 px-4 py-2">
+    <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3.5 py-2 sm:px-4 lg:px-6">
       <button
         type="button"
-        className="text-xs text-gray-400 hover:text-gray-200"
+        className="mx-auto block w-full max-w-[900px] text-left text-xs text-[var(--app-text-soft)] transition-colors hover:text-[var(--app-text)] xl:max-w-[960px]"
         onClick={() => {
           void onClear()
         }}

@@ -10,7 +10,9 @@ export interface UseChatReturn {
   error: string | null
   clearError: () => void
   streamingContent: string
+  conversationTitle: string
   handleSend: () => Promise<void>
   handleCancel: () => Promise<void>
-  handleKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void
+  handleNewChat: () => void
+  handleKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => void
 }

@@ -165,8 +165,25 @@ function useChat(): UseChatReturn {
     await window.deepdesk.chat.cancel(currentRequestIdRef.current)
   }, [])
 
+  const handleNewChat = useCallback(() => {
+    // Cancel any in-flight request first
+    if (currentRequestIdRef.current) {
+      void window.deepdesk.chat.cancel(currentRequestIdRef.current)
+    }
+
+    setMessages([])
+    setMessageInput('')
+    setError(null)
+    setStreamingContent('')
+    setIsLoading(false)
+    isLoadingRef.current = false
+    setCurrentRequestId(null)
+    currentRequestIdRef.current = null
+    draftRef.current = ''
+  }, [])
+
   const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
+    (event: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault()
         void handleSend()
@@ -179,6 +196,12 @@ function useChat(): UseChatReturn {
     setError(null)
   }, [])
 
+  // Derive conversation title from the first user message
+  const conversationTitle =
+    messages.length > 0
+      ? (messages.find((m) => m.role === 'user')?.content.slice(0, 60) ?? 'Nova conversa')
+      : 'Nova conversa'
+
   return {
     messages,
     messageInput,
@@ -187,8 +210,10 @@ function useChat(): UseChatReturn {
     error,
     clearError,
     streamingContent,
+    conversationTitle,
     handleSend,
     handleCancel,
+    handleNewChat,
     handleKeyDown
   }
 }
