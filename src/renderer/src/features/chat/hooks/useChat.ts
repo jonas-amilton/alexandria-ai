@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type KeyboardEvent as ReactKeyboardEvent
+} from 'react'
 
 import type {
   ChatDeltaPayload,
@@ -32,6 +38,7 @@ function useChat(): UseChatReturn {
   const isLoadingRef = useRef(false)
   const currentRequestIdRef = useRef<string | null>(null)
   const draftRef = useRef('')
+  const streamingContentRef = useRef('')
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -46,16 +53,17 @@ function useChat(): UseChatReturn {
 
   useEffect(() => {
     const unsubDelta = window.deepdesk.chat.onDelta((payload: ChatDeltaPayload) => {
-      setStreamingContent((prev) => prev + payload.content)
+      streamingContentRef.current += payload.content
+      setStreamingContent(streamingContentRef.current)
     })
 
     const unsubDone = window.deepdesk.chat.onDone((payload: ChatDonePayload) => {
       if (payload.requestId === currentRequestIdRef.current) {
-        setStreamingContent((current) => {
-          setMessages((prev) => [...prev, { role: 'assistant', content: current }])
+        const content = streamingContentRef.current
 
-          return ''
-        })
+        streamingContentRef.current = ''
+        setStreamingContent('')
+        setMessages((prev) => [...prev, { role: 'assistant', content }])
 
         setIsLoading(false)
         isLoadingRef.current = false
@@ -66,12 +74,13 @@ function useChat(): UseChatReturn {
 
     const unsubError = window.deepdesk.chat.onError((payload: ChatErrorPayload) => {
       if (payload.requestId === currentRequestIdRef.current) {
+        streamingContentRef.current = ''
+        setStreamingContent('')
         setError(payload.message)
         setIsLoading(false)
         isLoadingRef.current = false
         setCurrentRequestId(null)
         currentRequestIdRef.current = null
-        setStreamingContent('')
         // Restore the draft so the user doesn't lose their message
         setMessageInput(draftRef.current)
       }
@@ -80,16 +89,14 @@ function useChat(): UseChatReturn {
     const unsubCancelled = window.deepdesk.chat.onCancelled((payload: ChatCancelledPayload) => {
       if (payload.requestId === currentRequestIdRef.current) {
         // Keep any partial content as a message
-        setStreamingContent((current) => {
-          if (current.length > 0) {
-            setMessages((prev) => [
-              ...prev,
-              { role: 'assistant', content: `${current} [cancelled]` }
-            ])
-          }
+        const content = streamingContentRef.current
 
-          return ''
-        })
+        streamingContentRef.current = ''
+        setStreamingContent('')
+
+        if (content.length > 0) {
+          setMessages((prev) => [...prev, { role: 'assistant', content: `${content} [cancelled]` }])
+        }
 
         setIsLoading(false)
         isLoadingRef.current = false
@@ -104,7 +111,7 @@ function useChat(): UseChatReturn {
       unsubError()
       unsubCancelled()
     }
-  }, [currentRequestId])
+  }, [])
 
   // ── Handlers ───────────────────────────────────────────────────────────
 
@@ -123,6 +130,7 @@ function useChat(): UseChatReturn {
     setMessageInput('')
     setCurrentRequestId(requestId)
     currentRequestIdRef.current = requestId
+    streamingContentRef.current = ''
     setStreamingContent('')
     setIsLoading(true)
     isLoadingRef.current = true
@@ -174,6 +182,7 @@ function useChat(): UseChatReturn {
     setMessages([])
     setMessageInput('')
     setError(null)
+    streamingContentRef.current = ''
     setStreamingContent('')
     setIsLoading(false)
     isLoadingRef.current = false
@@ -183,7 +192,7 @@ function useChat(): UseChatReturn {
   }, [])
 
   const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+    (event: ReactKeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault()
         void handleSend()

@@ -1,8 +1,10 @@
+import type { ReactNode } from 'react'
+
 interface StreamingIndicatorProps {
   content: string
 }
 
-function StreamingIndicator({ content }: StreamingIndicatorProps): React.JSX.Element {
+function StreamingIndicator({ content }: StreamingIndicatorProps): ReactNode {
   return (
     <span>
       {content}

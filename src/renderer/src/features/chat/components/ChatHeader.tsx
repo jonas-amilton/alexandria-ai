@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 interface ChatHeaderProps {
   title: string
   subtitle?: string
@@ -10,7 +12,7 @@ function ChatHeader({
   subtitle,
   modelName,
   onToggleMobileMenu
-}: ChatHeaderProps): React.JSX.Element {
+}: ChatHeaderProps): ReactNode {
   const dateLabel = subtitle ?? 'Hoje, 10:42'
 
   return (

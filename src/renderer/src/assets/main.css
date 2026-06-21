@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import './base.css';
 
 :root {
   --app-bg: #050b14;

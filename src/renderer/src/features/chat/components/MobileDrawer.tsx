@@ -1,10 +1,12 @@
+import type { ReactNode } from 'react'
+
 interface MobileDrawerProps {
   open: boolean
   onClose: () => void
-  children: React.ReactNode
+  children: ReactNode
 }
 
-function MobileDrawer({ open, onClose, children }: MobileDrawerProps): React.JSX.Element | null {
+function MobileDrawer({ open, onClose, children }: MobileDrawerProps): ReactNode | null {
   if (!open) {
     return null
   }

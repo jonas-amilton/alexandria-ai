@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 interface ApiKeyInputProps {
   value: string
   onChange: (value: string) => void
@@ -5,7 +7,7 @@ interface ApiKeyInputProps {
   canPersist: boolean | undefined
 }
 
-function ApiKeyInput({ value, onChange, onSave, canPersist }: ApiKeyInputProps): React.JSX.Element {
+function ApiKeyInput({ value, onChange, onSave, canPersist }: ApiKeyInputProps): ReactNode {
   return (
     <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3.5 py-3 sm:px-4 lg:px-6">
       <div className="mx-auto flex w-full max-w-[900px] gap-2 xl:max-w-[960px]">
@@ -20,7 +22,7 @@ function ApiKeyInput({ value, onChange, onSave, canPersist }: ApiKeyInputProps):
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
-              void onSave()
+              onSave()
             }
           }}
         />
@@ -29,7 +31,7 @@ function ApiKeyInput({ value, onChange, onSave, canPersist }: ApiKeyInputProps):
           className="rounded-[10px] bg-[var(--app-accent)] px-4 py-1.5 text-[11px] font-medium text-white transition-colors hover:bg-[var(--app-accent-hover)] disabled:opacity-50"
           disabled={!value.trim()}
           onClick={() => {
-            void onSave()
+            onSave()
           }}
         >
           Salvar

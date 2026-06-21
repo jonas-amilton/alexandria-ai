@@ -1,3 +1,4 @@
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { ChatMessage } from '../../../../shared/chat'
 
 export type { ChatMessage } from '../../../../shared/chat'
@@ -14,5 +15,5 @@ export interface UseChatReturn {
   handleSend: () => Promise<void>
   handleCancel: () => Promise<void>
   handleNewChat: () => void
-  handleKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => void
+  handleKeyDown: (event: ReactKeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => void
 }

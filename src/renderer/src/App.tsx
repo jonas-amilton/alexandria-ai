@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 
 import type { ApiKeyStatus as ApiKeyStatusType } from '../../shared/chat'
 
@@ -15,7 +15,7 @@ const MODEL_NAME = 'Alexandria.AI'
 
 // ── App ─────────────────────────────────────────────────────────────────────
 
-function App(): React.JSX.Element {
+function App(): ReactNode {
   // ── Mobile drawer ──────────────────────────────────────────────────────
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)

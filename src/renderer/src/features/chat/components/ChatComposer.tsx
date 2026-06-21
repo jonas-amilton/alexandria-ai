@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 interface ChatComposerProps {
   value: string
@@ -18,7 +18,7 @@ function ChatComposer({
   onSubmit,
   onCancel,
   onKeyDown
-}: ChatComposerProps): React.JSX.Element {
+}: ChatComposerProps): ReactNode {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
@@ -48,11 +48,6 @@ function ChatComposer({
             onKeyDown={onKeyDown}
             disabled={disabled}
             rows={1}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement
-              target.style.height = 'auto'
-              target.style.height = `${Math.min(target.scrollHeight, 120)}px`
-            }}
           />
 
           <div className="mt-2 flex items-center justify-between">

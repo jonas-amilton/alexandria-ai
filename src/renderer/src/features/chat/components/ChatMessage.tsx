@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { ChatMessage as ChatMessageType } from '../types'
 
 interface ChatMessageProps {
@@ -5,7 +6,7 @@ interface ChatMessageProps {
   isStreaming?: boolean
 }
 
-function UserMessage({ message }: { message: ChatMessageType }): React.JSX.Element {
+function UserMessage({ message }: { message: ChatMessageType }): ReactNode {
   return (
     <div className="mb-7 flex justify-end gap-2">
       <div style={{ maxWidth: 'min(55%, 650px)' }}>
@@ -23,7 +24,7 @@ function UserMessage({ message }: { message: ChatMessageType }): React.JSX.Eleme
   )
 }
 
-function AssistantMessage({ message }: { message: ChatMessageType }): React.JSX.Element {
+function AssistantMessage({ message }: { message: ChatMessageType }): ReactNode {
   return (
     <div className="mb-6">
       {/* Assistant header */}
@@ -48,7 +49,7 @@ function AssistantMessage({ message }: { message: ChatMessageType }): React.JSX.
   )
 }
 
-function ChatMessage({ message, isStreaming }: ChatMessageProps): React.JSX.Element {
+function ChatMessage({ message, isStreaming }: ChatMessageProps): ReactNode {
   if (message.role === 'user') {
     return <UserMessage message={message} />
   }

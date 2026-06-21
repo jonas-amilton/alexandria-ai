@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 interface EmptyStateProps {
   onFillInput: (text: string) => void
 }
@@ -7,7 +9,7 @@ const SUGGESTIONS = [
   { label: 'Organizar tarefas', prompt: 'Organizar minhas tarefas por prioridade.' }
 ]
 
-function EmptyState({ onFillInput }: EmptyStateProps): React.JSX.Element {
+function EmptyState({ onFillInput }: EmptyStateProps): ReactNode {
   return (
     <div className="flex min-h-full flex-col justify-start px-1 pt-16 pb-8 md:pt-24 lg:justify-center lg:px-4">
       <div>

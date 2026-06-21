@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { ChatMessage } from '../types'
 import ChatMessageView from './ChatMessage'
 import EmptyState from './EmptyState'
@@ -9,11 +10,7 @@ interface MessageListProps {
   onFillInput: (text: string) => void
 }
 
-function MessageList({
-  messages,
-  streamingContent,
-  onFillInput
-}: MessageListProps): React.JSX.Element {
+function MessageList({ messages, streamingContent, onFillInput }: MessageListProps): ReactNode {
   const hasContent = messages.length > 0 || streamingContent.length > 0
 
   return (
@@ -44,7 +41,10 @@ function MessageList({
                 online
               </span>
             </div>
-            <div className="text-[11px] leading-relaxed text-[#e2e8f0]" style={{ maxWidth: 'min(85%, 960px)' }}>
+            <div
+              className="text-[11px] leading-relaxed text-[#e2e8f0]"
+              style={{ maxWidth: 'min(85%, 960px)' }}
+            >
               <StreamingIndicator content={streamingContent} />
             </div>
           </div>

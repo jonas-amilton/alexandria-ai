@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 interface SidebarProps {
   activeTitle: string
   onNewChat: () => void
@@ -11,7 +13,7 @@ const MOCK_CONVERSATIONS = [
   'Ideias para SaaS'
 ]
 
-function Sidebar({ activeTitle, onNewChat, onToggleMobile }: SidebarProps): React.JSX.Element {
+function Sidebar({ activeTitle, onNewChat, onToggleMobile }: SidebarProps): ReactNode {
   return (
     <aside className="flex h-full w-[200px] flex-shrink-0 flex-col border-r border-[var(--app-border)] bg-[var(--app-panel)] px-3 pt-3">
       {/* Branding */}
@@ -73,10 +75,10 @@ function Sidebar({ activeTitle, onNewChat, onToggleMobile }: SidebarProps): Reac
       <div className="border-t border-[var(--app-border)] py-3">
         <div className="flex items-center gap-2">
           <div className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[7px] bg-[var(--app-panel-3)] text-[10px] font-medium text-[var(--app-text)]">
-            J
+            M
           </div>
           <div>
-            <div className="text-[10px] text-[var(--app-text)]">Jonas Genro</div>
+            <div className="text-[10px] text-[var(--app-text)]">Minha Conta</div>
             <div className="text-[9px] text-[var(--app-text-muted)]">Plano pessoal</div>
           </div>
         </div>
