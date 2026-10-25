@@ -34,12 +34,22 @@ export const PROVIDERS: Record<ProviderId, ProviderDefinition> = {
     baseUrl: 'https://api.deepseek.com/v1',
     keyPlaceholder: 'sk-…',
     keyPrefixes: ['sk-'],
-    defaultModel: 'deepseek-v4-flash',
+    defaultModel: 'deepseek-flash',
     models: [
-      { id: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash' },
-      { id: 'deepseek-v4.1-flash', label: 'DeepSeek V4.1 Flash' },
-      { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro' },
-      { id: 'deepseek-flash', label: 'DeepSeek Flash' }
+      {
+        id: 'deepseek-flash',
+        label: 'DeepSeek Flash',
+        contextLength: 65536,
+        description:
+          'Modelo rápido e eficiente da DeepSeek (V4.1-Flash), ideal para código e uso geral.'
+      },
+      {
+        id: 'deepseek-v4-pro',
+        label: 'DeepSeek V4 Pro',
+        contextLength: 131072,
+        description:
+          'Modelo DeepSeek Pro de alta capacidade para engenharia de software complexa e raciocínio avançado.'
+      }
     ]
   },
   openrouter: {

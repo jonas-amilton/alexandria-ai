@@ -32,6 +32,8 @@ const POPULAR_SUBSTRINGS = [
   'gpt-4o-mini',
   'o1',
   'o3-mini',
+  'deepseek-flash',
+  'deepseek-v4-pro',
   'deepseek-chat',
   'deepseek-reasoner',
   'deepseek-r1',

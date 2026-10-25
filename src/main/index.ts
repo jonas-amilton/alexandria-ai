@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, safeStorage } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, safeStorage, nativeImage } from 'electron'
 import { join } from 'path'
 import { readFile, writeFile, rename, unlink } from 'fs/promises'
 import { randomUUID } from 'crypto'
@@ -336,12 +336,15 @@ function logOp(message: string): void {
 // ── Window creation ───────────────────────────────────────────────────────
 
 function createWindow(): void {
+  const appIcon = nativeImage.createFromPath(icon)
+
   const mainWindow = new BrowserWindow({
+    title: 'Alexandria.AI',
     width: 900,
     height: 670,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon: appIcon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -349,6 +352,10 @@ function createWindow(): void {
       nodeIntegration: false
     }
   })
+
+  if (!appIcon.isEmpty()) {
+    mainWindow.setIcon(appIcon)
+  }
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -537,7 +544,8 @@ async function fetchOpenRouterModels(): Promise<ProviderModelOption[]> {
 // ── App lifecycle ─────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.electron')
+  app.setName('alexandria-ai')
+  electronApp.setAppUserModelId('com.alexandria.ai')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

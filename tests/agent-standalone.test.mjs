@@ -168,6 +168,16 @@ async function runTests() {
   assert(PROVIDER_IDS.includes('openrouter'), 'OpenRouter must be registered')
 
   assert.equal(PROVIDERS.deepseek.baseUrl, 'https://api.deepseek.com/v1')
+  assert.equal(PROVIDERS.deepseek.defaultModel, 'deepseek-flash')
+  assert.equal(PROVIDERS.deepseek.models.length, 2, 'DeepSeek must have exactly 2 official models')
+  assert(
+    PROVIDERS.deepseek.models.some((m) => m.id === 'deepseek-flash'),
+    'Must include deepseek-flash'
+  )
+  assert(
+    PROVIDERS.deepseek.models.some((m) => m.id === 'deepseek-v4-pro'),
+    'Must include deepseek-v4-pro'
+  )
   assert.equal(PROVIDERS.openrouter.baseUrl, 'https://openrouter.ai/api/v1')
   assert(PROVIDERS.openrouter.defaultModel.endsWith(':free'), 'OpenRouter default should be free')
   assert(
