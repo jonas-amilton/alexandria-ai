@@ -1,7 +1,14 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
-import type { ChatMessage } from '../../../../shared/chat'
+import type { ChatMessage, SessionItem } from '../../../../shared/chat'
 
-export type { ChatMessage } from '../../../../shared/chat'
+export type { ChatMessage, SessionItem } from '../../../../shared/chat'
+
+export interface ToolActivity {
+  callId: string
+  name: string
+  status: 'running' | 'done' | 'error'
+  detail?: string
+}
 
 export interface UseChatReturn {
   messages: ChatMessage[]
@@ -11,7 +18,14 @@ export interface UseChatReturn {
   error: string | null
   clearError: () => void
   streamingContent: string
+  toolActivity: ToolActivity[]
+  agentMode: boolean
+  toggleAgentMode: () => void
+  currentSessionId: string
   conversationTitle: string
+  sessions: SessionItem[]
+  handleSelectSession: (sessionId: string) => Promise<void>
+  handleDeleteSession: (sessionId: string) => Promise<void>
   handleSend: () => Promise<void>
   handleCancel: () => Promise<void>
   handleNewChat: () => void

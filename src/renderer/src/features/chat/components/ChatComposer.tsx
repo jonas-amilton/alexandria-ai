@@ -4,9 +4,11 @@ interface ChatComposerProps {
   value: string
   disabled: boolean
   isLoading: boolean
+  agentMode: boolean
   onChange: (value: string) => void
   onSubmit: () => void
   onCancel: () => void
+  onToggleAgentMode: () => void
   onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void
 }
 
@@ -14,9 +16,11 @@ function ChatComposer({
   value,
   disabled,
   isLoading,
+  agentMode,
   onChange,
   onSubmit,
   onCancel,
+  onToggleAgentMode,
   onKeyDown
 }: ChatComposerProps): ReactNode {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -71,6 +75,28 @@ function ChatComposer({
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
+              </button>
+
+              {/* Agent mode toggle */}
+              <button
+                type="button"
+                className={`inline-flex h-5.5 items-center gap-1 rounded-full border px-2 text-[9px] transition-colors ${
+                  agentMode
+                    ? 'border-[var(--app-accent)] bg-[rgba(120,92,247,0.18)] text-[var(--app-text)]'
+                    : 'border-[var(--app-border-soft)] bg-[var(--app-panel)] text-[var(--app-text-soft)] hover:text-[var(--app-text)]'
+                }`}
+                aria-pressed={agentMode}
+                title={
+                  agentMode
+                    ? 'Modo agente ativo — ferramentas e memória habilitadas'
+                    : 'Modo agente desativado — resposta simples'
+                }
+                onClick={onToggleAgentMode}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z" />
+                </svg>
+                Agente
               </button>
 
               {/* Web chip — visual only */}

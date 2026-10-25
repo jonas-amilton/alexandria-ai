@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   --app-bg: #050b14;
@@ -27,8 +27,7 @@ body {
   display: block;
   overflow: hidden;
   background:
-    radial-gradient(circle at top, rgba(34, 50, 82, 0.18), transparent 28%),
-    var(--app-bg);
+    radial-gradient(circle at top, rgba(34, 50, 82, 0.18), transparent 28%), var(--app-bg);
   color: var(--app-text);
   font-family:
     Inter,
