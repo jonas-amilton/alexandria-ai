@@ -19,6 +19,8 @@ export interface UseChatReturn {
   clearError: () => void
   streamingContent: string
   toolActivity: ToolActivity[]
+  mode: 'agent' | 'plan'
+  setMode: (mode: 'agent' | 'plan') => void
   agentMode: boolean
   toggleAgentMode: () => void
   currentSessionId: string

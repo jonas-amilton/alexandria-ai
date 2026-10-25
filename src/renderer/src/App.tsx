@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, type ReactNode } from 'react'
 
 import type { SettingsStatus as SettingsStatusType } from '../../shared/chat'
 import type { ProjectRecord, ProjectsState } from '../../shared/projects'
-import { PROVIDERS } from '../../shared/providers'
+import { PROVIDERS, type ProviderId } from '../../shared/providers'
 import type { RagIndexStats } from '../../shared/rag'
 
 import useChat from './features/chat/hooks/useChat'
@@ -11,10 +11,7 @@ import MobileDrawer from './features/chat/components/MobileDrawer'
 import ChatHeader from './features/chat/components/ChatHeader'
 import MessageList from './features/chat/components/MessageList'
 import ChatComposer from './features/chat/components/ChatComposer'
-import SettingsModal from './features/settings/components/SettingsModal'
-import MemoryModal from './features/chat/components/MemoryModal'
-import SkillsModal from './features/chat/components/SkillsModal'
-import CodeGraphModal from './features/chat/components/CodeGraphModal'
+import SettingsModal, { type SettingsTab } from './features/settings/components/SettingsModal'
 
 const MODEL_NAME = 'Alexandria.AI'
 
@@ -24,13 +21,8 @@ function App(): ReactNode {
   // ── Modals & Drawer State ───────────────────────────────────────────────
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
-  const [memoryModalOpen, setMemoryModalOpen] = useState(false)
-  const [skillsModalOpen, setSkillsModalOpen] = useState(false)
-  const [graphModalOpen, setGraphModalOpen] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
-  const [settingsInitialTab, setSettingsInitialTab] = useState<'openrouter' | 'deepseek' | 'mcp'>(
-    'openrouter'
-  )
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('openrouter')
 
   // ── Settings & Projects state ───────────────────────────────────────────
 
@@ -132,6 +124,15 @@ function App(): ReactNode {
 
   const displayError = chat.error
 
+  const handleSelectModel = async (provider: ProviderId, model: string): Promise<void> => {
+    try {
+      const res = await window.deepdesk.settings.update({ provider, model })
+      setSettingsStatus(res)
+    } catch (err) {
+      alert(`Erro ao alternar modelo: ${String(err)}`)
+    }
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────
 
   return (
@@ -161,10 +162,22 @@ function App(): ReactNode {
           onRemoveProject={(id) => {
             void handleRemoveProject(id)
           }}
-          onOpenMemoryModal={() => setMemoryModalOpen(true)}
-          onOpenSkillsModal={() => setSkillsModalOpen(true)}
-          onOpenGraphModal={() => setGraphModalOpen(true)}
-          onOpenSettingsModal={() => setSettingsModalOpen(true)}
+          onOpenMemoryModal={() => {
+            setSettingsTab('memory')
+            setSettingsModalOpen(true)
+          }}
+          onOpenSkillsModal={() => {
+            setSettingsTab('skills')
+            setSettingsModalOpen(true)
+          }}
+          onOpenGraphModal={() => {
+            setSettingsTab('codegraph')
+            setSettingsModalOpen(true)
+          }}
+          onOpenSettingsModal={() => {
+            setSettingsTab('openrouter')
+            setSettingsModalOpen(true)
+          }}
         />
       </div>
 
@@ -194,10 +207,22 @@ function App(): ReactNode {
           onRemoveProject={(id) => {
             void handleRemoveProject(id)
           }}
-          onOpenMemoryModal={() => setMemoryModalOpen(true)}
-          onOpenSkillsModal={() => setSkillsModalOpen(true)}
-          onOpenGraphModal={() => setGraphModalOpen(true)}
-          onOpenSettingsModal={() => setSettingsModalOpen(true)}
+          onOpenMemoryModal={() => {
+            setSettingsTab('memory')
+            setSettingsModalOpen(true)
+          }}
+          onOpenSkillsModal={() => {
+            setSettingsTab('skills')
+            setSettingsModalOpen(true)
+          }}
+          onOpenGraphModal={() => {
+            setSettingsTab('codegraph')
+            setSettingsModalOpen(true)
+          }}
+          onOpenSettingsModal={() => {
+            setSettingsTab('openrouter')
+            setSettingsModalOpen(true)
+          }}
         />
       </MobileDrawer>
 
@@ -207,15 +232,8 @@ function App(): ReactNode {
         <ChatHeader
           projectName={activeProject?.name || 'Projeto'}
           sessionTitle={chat.conversationTitle}
-          onOpenCodeGraph={() => setGraphModalOpen(true)}
-          onOpenSkills={() => setSkillsModalOpen(true)}
-          onOpenMemory={() => setMemoryModalOpen(true)}
-          onOpenMcp={() => {
-            setSettingsInitialTab('mcp')
-            setSettingsModalOpen(true)
-          }}
           onOpenSettings={() => {
-            setSettingsInitialTab('openrouter')
+            setSettingsTab('openrouter')
             setSettingsModalOpen(true)
           }}
           onToggleMobileMenu={() => setMobileDrawerOpen(true)}
@@ -258,8 +276,8 @@ function App(): ReactNode {
           onCancel={() => {
             void chat.handleCancel()
           }}
-          agentMode={chat.agentMode}
-          onToggleAgentMode={chat.toggleAgentMode}
+          mode={chat.mode}
+          onModeChange={chat.setMode}
           isStreaming={chat.isLoading}
           isLoading={chat.isLoading}
           disabled={chat.isLoading}
@@ -268,35 +286,26 @@ function App(): ReactNode {
           contextWindowLabel={
             settingsStatus?.provider ? PROVIDERS[settingsStatus.provider].label : 'OpenRouter'
           }
+          currentProvider={settingsStatus?.provider ?? 'openrouter'}
+          currentModel={settingsStatus?.model ?? 'nvidia/nemotron-3.5-lightning:free'}
+          onSelectModel={(prov, mod) => {
+            void handleSelectModel(prov, mod)
+          }}
+          onOpenSettings={() => {
+            setSettingsTab('openrouter')
+            setSettingsModalOpen(true)
+          }}
           onKeyDown={chat.handleKeyDown}
         />
       </main>
 
-      {/* Memory modal (USER.md & MEMORY.md) */}
-      <MemoryModal
-        open={memoryModalOpen}
-        activeProjectPath={activeProject?.path}
-        activeProjectName={activeProject?.name}
-        onClose={() => setMemoryModalOpen(false)}
-      />
-
-      {/* Skills modal (SKILL.md catalog & editor) */}
-      <SkillsModal open={skillsModalOpen} onClose={() => setSkillsModalOpen(false)} />
-
-      {/* CodeGraph modal */}
-      <CodeGraphModal
-        open={graphModalOpen}
-        onClose={() => setGraphModalOpen(false)}
-        targetDir={activeProject?.path}
-      />
-
-      {/* Settings & Models modal */}
+      {/* Unified Settings & Tools modal */}
       <SettingsModal
-        key={`${settingsModalOpen ? 'open' : 'closed'}-${settingsInitialTab}`}
+        key={`${settingsModalOpen ? 'open' : 'closed'}-${settingsTab}`}
         open={settingsModalOpen}
         status={settingsStatus}
         activeProjectPath={activeProject?.path}
-        initialTab={settingsInitialTab}
+        initialTab={settingsTab}
         onClose={() => setSettingsModalOpen(false)}
         onUpdateSettings={async (provider, model) => {
           const res = await window.deepdesk.settings.update({ provider, model })

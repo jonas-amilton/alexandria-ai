@@ -3,19 +3,13 @@ import type { ReactNode } from 'react'
 /*
   ChatHeader.tsx — Alexandria.AI
 
-  Breadcrumb funcional (Projeto > Sessão), não decorativo: cada segmento
-  é legível e leva a um estado real da aplicação. Ações rápidas à direita
-  abrem as modais de engenharia (CodeGraph, Skills, Memória, MCP, Configurações) —
-  botões compactos em monospace sem competir com o breadcrumb.
+  Breadcrumb funcional (Projeto > Sessão) e acesso centralizado
+  às Configurações e Ferramentas técnicas do ecossistema.
 */
 
 interface ChatHeaderProps {
   projectName?: string
   sessionTitle: string
-  onOpenCodeGraph: () => void
-  onOpenSkills: () => void
-  onOpenMemory: () => void
-  onOpenMcp: () => void
   onOpenSettings: () => void
   onToggleMobileMenu?: () => void
 }
@@ -23,10 +17,6 @@ interface ChatHeaderProps {
 export function ChatHeader({
   projectName = 'Projeto',
   sessionTitle,
-  onOpenCodeGraph,
-  onOpenSkills,
-  onOpenMemory,
-  onOpenMcp,
   onOpenSettings,
   onToggleMobileMenu
 }: ChatHeaderProps): ReactNode {
@@ -58,27 +48,17 @@ export function ChatHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        <HeaderButton label="CodeGraph" onClick={onOpenCodeGraph} />
-        <HeaderButton label="Skills" onClick={onOpenSkills} />
-        <HeaderButton label="Memória" onClick={onOpenMemory} />
-        <HeaderButton label="MCP" onClick={onOpenMcp} />
-        <span className="mx-1 h-4 w-px bg-(--color-border)" aria-hidden="true" />
-        <HeaderButton label="Configurações" onClick={onOpenSettings} />
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          title="Configurações e Ferramentas (Modelos, MCP, Memória, Skills, CodeGraph)"
+          className="flex items-center gap-1.5 rounded-(--radius-sm) border border-(--color-border) px-2.5 py-1 font-mono text-(length:--text-2xs) text-(--color-text-muted) transition-colors hover:border-(--color-border-strong) hover:bg-(--color-surface) hover:text-(--color-text)"
+        >
+          <span>⚙️</span>
+          <span>Configurações</span>
+        </button>
       </div>
     </header>
-  )
-}
-
-function HeaderButton({ label, onClick }: { label: string; onClick: () => void }): ReactNode {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      className="rounded-(--radius-sm) px-2 py-1 font-mono text-(length:--text-2xs) text-(--color-text-faint) transition-colors hover:bg-(--color-surface) hover:text-(--color-text)"
-    >
-      {label}
-    </button>
   )
 }
 

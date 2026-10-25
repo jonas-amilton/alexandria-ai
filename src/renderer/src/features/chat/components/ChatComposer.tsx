@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import ModelSelectorDropdown from './ModelSelectorDropdown'
+import type { ProviderId } from '../../../../../shared/providers'
 
 /*
   ChatComposer.tsx — Alexandria.AI
 
   Caixa de comando tipo terminal/Raycast:
-  - Sem placeholder genérico de chatbot: muda conforme o modo (agente vs pergunta).
+  - Toggle entre Agente (execução completa) e Plano (planejamento técnico sem execução).
+  - Seletor de modelos inline com 1-clique para troca rápida sem ir em configurações.
   - Enter envia; Shift+Enter quebra linha; Cmd/Ctrl+K foca o composer.
-  - Botão de modo agente é um toggle explícito com estado visual claro.
   - Streaming em andamento = botão de envio vira botão de cancelamento (AbortSignal).
 */
 
-export type ComposerMode = 'agent' | 'ask'
+export type ComposerMode = 'agent' | 'plan'
 
 interface ChatComposerProps {
   value: string
@@ -27,6 +29,10 @@ interface ChatComposerProps {
   isProjectOpen?: boolean
   modelLabel?: string
   contextWindowLabel?: string
+  currentProvider?: ProviderId
+  currentModel?: string
+  onSelectModel?: (provider: ProviderId, modelId: string) => void
+  onOpenSettings?: () => void
   onKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void
 }
 
@@ -35,9 +41,10 @@ const MODE_CONFIG: Record<ComposerMode, { label: string; placeholder: string }> 
     label: 'Agente',
     placeholder: 'Descreva a tarefa — o agente vai planejar, usar ferramentas e executar'
   },
-  ask: {
-    label: 'Pergunta',
-    placeholder: 'Pergunte sobre o código do projeto ativo'
+  plan: {
+    label: 'Plano',
+    placeholder:
+      'Descreva a funcionalidade — o agente vai analisar a base de código e criar um plano técnico sem executar alterações'
   }
 }
 
@@ -56,14 +63,19 @@ export function ChatComposer({
   isProjectOpen = true,
   modelLabel = 'OpenRouter',
   contextWindowLabel,
+  currentProvider = 'openrouter',
+  currentModel = 'nvidia/nemotron-3.5-lightning:free',
+  onSelectModel,
+  onOpenSettings,
   onKeyDown
 }: ChatComposerProps): ReactNode {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [isFocused, setIsFocused] = useState(false)
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
 
-  // Resolução do modo (suporta tanto mode='agent'|'ask' quanto agentMode boolean)
+  // Resolução do modo (suporta tanto mode='agent'|'plan' quanto agentMode boolean)
   const currentMode: ComposerMode =
-    mode !== undefined ? mode : agentMode !== false ? 'agent' : 'ask'
+    mode !== undefined ? mode : agentMode !== false ? 'agent' : 'plan'
 
   const activeStreaming = isStreaming || isLoading
 
@@ -107,17 +119,17 @@ export function ChatComposer({
           isFocused ? 'border-(--color-accent-blue)' : 'border-(--color-border)'
         }`}
       >
-        {/* Barra superior: modo agente + modelo ativo */}
+        {/* Barra superior: modo agente vs plano + seletor de modelo */}
         <div className="flex items-center justify-between gap-2 border-b border-(--color-border) px-2.5 py-1.5">
           <div className="flex items-center gap-1 rounded-(--radius-xs) bg-(--color-bg) p-0.5">
-            {(['agent', 'ask'] as const).map((candidate) => (
+            {(['agent', 'plan'] as const).map((candidate) => (
               <button
                 key={candidate}
                 type="button"
                 onClick={() => handleSelectMode(candidate)}
                 className={`rounded-(--radius-xs) px-2 py-0.5 font-mono text-(length:--text-2xs) transition-colors ${
                   currentMode === candidate
-                    ? 'bg-(--color-surface-raised) text-(--color-text)'
+                    ? 'bg-(--color-surface-raised) text-(--color-text) font-medium'
                     : 'text-(--color-text-faint) hover:text-(--color-text-muted)'
                 }`}
                 aria-pressed={currentMode === candidate}
@@ -127,16 +139,32 @@ export function ChatComposer({
             ))}
           </div>
 
-          <div
-            className="flex items-center gap-1.5 rounded-(--radius-xs) border border-(--color-border) px-1.5 py-0.5 font-mono text-(length:--text-2xs) text-(--color-text-faint)"
-            title="Modelo ativo"
-          >
-            <span className="max-w-48 truncate">{modelLabel}</span>
-            {contextWindowLabel && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>{contextWindowLabel}</span>
-              </>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setModelDropdownOpen((prev) => !prev)}
+              className="flex items-center gap-1.5 rounded-(--radius-xs) border border-(--color-border) px-1.5 py-0.5 font-mono text-(length:--text-2xs) text-(--color-text-faint) transition-colors hover:border-(--color-accent-blue) hover:text-(--color-text)"
+              title="Clique para alternar o modelo diretamente"
+            >
+              <span className="max-w-48 truncate">{modelLabel}</span>
+              {contextWindowLabel && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{contextWindowLabel}</span>
+                </>
+              )}
+              <span className="text-[9px] text-(--color-text-muted)">▾</span>
+            </button>
+
+            {onSelectModel && (
+              <ModelSelectorDropdown
+                open={modelDropdownOpen}
+                currentProvider={currentProvider}
+                currentModel={currentModel}
+                onClose={() => setModelDropdownOpen(false)}
+                onSelectModel={onSelectModel}
+                onOpenSettings={onOpenSettings}
+              />
             )}
           </div>
         </div>

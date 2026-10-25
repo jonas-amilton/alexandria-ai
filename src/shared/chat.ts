@@ -76,13 +76,17 @@ export type ChatMessage = z.infer<typeof ChatMessageSchema>
 
 // ── Chat Start ────────────────────────────────────────────────────────────
 
+export const ChatModeSchema = z.enum(['agent', 'plan'])
+export type ChatMode = z.infer<typeof ChatModeSchema>
+
 export const ChatStartPayloadSchema = z.object({
   requestId: z.string().min(1),
   sessionId: z.string().min(1).max(128).optional(),
   projectId: z.string().optional(),
   message: z.string().min(1),
   history: z.array(ChatMessageSchema).optional().default([]),
-  agentMode: z.boolean().optional().default(false)
+  mode: ChatModeSchema.optional().default('agent'),
+  agentMode: z.boolean().optional().default(true)
 })
 
 export type ChatStartPayload = z.infer<typeof ChatStartPayloadSchema>

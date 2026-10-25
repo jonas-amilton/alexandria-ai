@@ -678,9 +678,11 @@ app.whenReady().then(() => {
       sessionId,
       message,
       history,
+      mode: requestedMode,
       agentMode,
       projectId: requestedProjectId
     } = parseResult.data
+    const mode = requestedMode ?? (agentMode === false ? 'plan' : 'agent')
     const activeSessionId = sessionId ?? 'default-session'
 
     const projectsState = await getProjectsState()
@@ -730,12 +732,14 @@ app.whenReady().then(() => {
 
     activeRequests.set(requestId, controller)
 
+    const isLoopMode = mode === 'agent' || mode === 'plan' || agentMode === true
+
     // Set up timeout (agent turns may make several model calls)
     const timeout = setTimeout(
       () => {
         controller.abort()
       },
-      agentMode ? AGENT_TIMEOUT_MS : PROVIDER_TIMEOUT_MS
+      isLoopMode ? AGENT_TIMEOUT_MS : PROVIDER_TIMEOUT_MS
     )
 
     const sendDelta = (content: string): void => {
@@ -747,7 +751,7 @@ app.whenReady().then(() => {
     // Launch streaming in background (don't await — we return accepted immediately)
     ;(async () => {
       try {
-        if (agentMode) {
+        if (isLoopMode) {
           const [memory, skills] = await Promise.all([loadMemorySnapshot(), listSkills()])
           let projectMemory = ''
           if (currentProject) {
@@ -763,6 +767,7 @@ app.whenReady().then(() => {
             model,
             memory,
             skills,
+            mode,
             projectContext: currentProject
               ? {
                   name: currentProject.name,

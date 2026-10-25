@@ -35,7 +35,11 @@ function useChat(activeProjectId?: string): UseChatReturn {
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null)
   const [streamingContent, setStreamingContent] = useState('')
   const [toolActivity, setToolActivity] = useState<ToolActivity[]>([])
-  const [agentMode, setAgentMode] = useState(true)
+  const [mode, setMode] = useState<'agent' | 'plan'>('agent')
+  const agentMode = mode === 'agent'
+  const toggleAgentMode = useCallback(() => {
+    setMode((prev) => (prev === 'agent' ? 'plan' : 'agent'))
+  }, [])
   const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID())
   const [sessions, setSessions] = useState<SessionItem[]>([])
 
@@ -229,6 +233,7 @@ function useChat(activeProjectId?: string): UseChatReturn {
       projectId: activeProjectId,
       message: trimmed,
       history,
+      mode,
       agentMode
     })
 
@@ -243,7 +248,7 @@ function useChat(activeProjectId?: string): UseChatReturn {
       setStreamingContent('')
       setToolActivity([])
     }
-  }, [messageInput, messages, agentMode, sessionId, activeProjectId])
+  }, [messageInput, messages, mode, agentMode, sessionId, activeProjectId])
 
   const handleCancel = useCallback(async () => {
     if (!currentRequestIdRef.current) {
@@ -323,10 +328,6 @@ function useChat(activeProjectId?: string): UseChatReturn {
     setError(null)
   }, [])
 
-  const toggleAgentMode = useCallback(() => {
-    setAgentMode((prev) => !prev)
-  }, [])
-
   // Derive conversation title from the first user message
   const conversationTitle =
     messages.length > 0
@@ -342,6 +343,8 @@ function useChat(activeProjectId?: string): UseChatReturn {
     clearError,
     streamingContent,
     toolActivity,
+    mode,
+    setMode,
     agentMode,
     toggleAgentMode,
     currentSessionId: sessionId,

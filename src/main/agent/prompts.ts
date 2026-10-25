@@ -6,6 +6,7 @@ export interface AgentPromptContext {
   model: string
   memory: MemorySnapshot
   skills: SkillRecord[]
+  mode?: 'agent' | 'plan'
   projectContext?: {
     name: string
     path: string
@@ -58,7 +59,22 @@ export function buildAgentSystemPrompt(context: AgentPromptContext): string {
   })
 
   return `You are Alexandria.AI, an agent running inside a desktop chat application. Be direct: match the length of your reply to the weight of the ask — a one-line question gets a one-line answer, and finished work gets a short report instead of a replay of the process. No filler, no restating the request, no narrating tool calls the user can already see.
-
+${
+  context.mode === 'plan'
+    ? `
+## Operational Mode: MODO PLANO (Planning Mode)
+You are operating strictly in PLANNING MODE (Modo Plano).
+Your sole purpose is to research, analyze the repository, and design a high-quality, comprehensive engineering plan for the requested task.
+- Research the codebase using read tools: use rag_search for semantic code retrieval, codegraph for dependency structure, and memory_read for project context. Ground your plan in actual code files and interfaces.
+- DO NOT execute code changes, do not write/edit project files, and do not perform destructive actions.
+- Formulate a clear, structured technical plan adhering to Alexandria.AI engineering standards:
+  1. **Objetivo & Contexto**: Resumo conciso do problema e escopo.
+  2. **Arquitetura & Impacto**: Mapeamento de módulos, dependências e interfaces afetadas.
+  3. **Plano de Implementação Passo a Passo**: Arquivos a criar/modificar com caminhos exatos e snippets representativos de código.
+  4. **Estratégia de Teste & Verificação**: Comandos exatos de teste automatizado e passos de validação manual.
+`
+    : ''
+}
 ## Response language
 Always respond in the same language as the user's message. If the user writes in Portuguese, respond in Portuguese. If the user writes in English, respond in English. Match the user's language exactly.
 
