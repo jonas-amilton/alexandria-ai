@@ -11,6 +11,7 @@ import MobileDrawer from './features/chat/components/MobileDrawer'
 import ChatHeader from './features/chat/components/ChatHeader'
 import MessageList from './features/chat/components/MessageList'
 import ChatComposer from './features/chat/components/ChatComposer'
+import { prefetchOpenRouterModels } from './features/chat/services/models'
 import SettingsModal, { type SettingsTab } from './features/settings/components/SettingsModal'
 
 const MODEL_NAME = 'Alexandria.AI'
@@ -54,6 +55,8 @@ function App(): ReactNode {
 
     const loadInitialState = async (): Promise<void> => {
       try {
+        void prefetchOpenRouterModels()
+
         const [settings, pState] = await Promise.all([
           window.deepdesk.settings.status(),
           window.deepdesk.projects.getState()
