@@ -185,6 +185,32 @@ Follow these steps to analyze the code diff...`
 
     console.log('   ✓ Skills frontmatter and markdown structure verified.')
 
+    // ── Test 5: GitHub URL Resolution for Skill Import ────────────────────────
+    console.log('\n5. Testing GitHub URL Resolution for Skill Import...')
+    const { resolveGithubRawUrls } = await import('../src/main/agent/skills.ts')
+
+    // Blob URL
+    const blobUrls = resolveGithubRawUrls(
+      'https://github.com/anthropics/anthropic-quickstarts/blob/main/skills/computer-use/SKILL.md'
+    )
+    assert.equal(
+      blobUrls[0],
+      'https://raw.githubusercontent.com/anthropics/anthropic-quickstarts/main/skills/computer-use/SKILL.md'
+    )
+
+    // Tree / directory URL
+    const treeUrls = resolveGithubRawUrls('https://github.com/owner/repo/tree/main/skills/my-skill')
+    assert.equal(
+      treeUrls[0],
+      'https://raw.githubusercontent.com/owner/repo/main/skills/my-skill/SKILL.md'
+    )
+
+    // Gist URL
+    const gistUrls = resolveGithubRawUrls('https://gist.github.com/testuser/123456789abcdef')
+    assert.equal(gistUrls[0], 'https://gist.githubusercontent.com/testuser/123456789abcdef/raw')
+
+    console.log('   ✓ GitHub URL resolution for skill imports verified.')
+
     console.log('\n🎉 ALL TESTS PASSED! Multi-Project, Skills and RAG are working perfectly.')
   } finally {
     try {

@@ -10,7 +10,14 @@ import {
   type MemoryTarget
 } from './memory'
 import { searchSessions } from './sessions'
-import { createSkill, deleteSkill, getSkill, listSkills, patchSkill } from './skills'
+import {
+  createSkill,
+  deleteSkill,
+  getSkill,
+  listSkills,
+  patchSkill,
+  importSkillFromUrl
+} from './skills'
 import {
   buildCodeGraph,
   findDependencyPath,
@@ -94,12 +101,13 @@ const RagSearchArgs = z.object({
 })
 
 const SkillManageArgs = z.object({
-  action: z.enum(['create', 'patch', 'delete']).describe('Operation to perform.'),
+  action: z.enum(['create', 'patch', 'delete', 'import']).describe('Operation to perform.'),
   name: z
     .string()
     .min(1)
     .max(64)
-    .describe('Slug-like skill name (lowercase letters, digits, -, _).'),
+    .optional()
+    .describe('Slug-like skill name (required for create, patch, delete).'),
   description: z
     .string()
     .max(1024)
@@ -114,7 +122,11 @@ const SkillManageArgs = z.object({
     .string()
     .max(4000)
     .optional()
-    .describe('Required for patch: the exact span to replace in the skill body.')
+    .describe('Required for patch: the exact span to replace in the skill body.'),
+  url: z
+    .string()
+    .optional()
+    .describe('Required for import: direct GitHub URL, Gist, or raw markdown link of the skill.')
 })
 
 function schemaFor(schema: z.ZodType): Record<string, unknown> {
@@ -278,7 +290,23 @@ async function runSkillManage(rawArguments: string): Promise<ToolResult> {
     return fail(parsed.message)
   }
 
-  const { action, name, description, content, old_text } = parsed.value
+  const { action, name, description, content, old_text, url } = parsed.value
+
+  if (action === 'import') {
+    if (!url) {
+      return fail('url is required for action="import".')
+    }
+    const res = await importSkillFromUrl(url)
+    return res.ok && res.skill
+      ? ok(
+          `Skill "${res.skill.name}" imported successfully from GitHub.\nDescription: ${res.skill.description}`
+        )
+      : fail(res.message || 'Failed to import skill.')
+  }
+
+  if (!name) {
+    return fail('name is required for create, patch, and delete actions.')
+  }
 
   if (action === 'create') {
     if (!description || !content) {

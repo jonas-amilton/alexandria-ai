@@ -65,6 +65,11 @@ declare global {
           content: string
         }) => Promise<{ ok: boolean; message?: string }>
         delete: (name: string) => Promise<{ ok: boolean; message?: string }>
+        importFromUrl: (url: string) => Promise<{
+          ok: boolean
+          skill?: { name: string; description: string; markdown: string; body: string }
+          message?: string
+        }>
       }
       rag: {
         index: (projectId: string, projectPath: string) => Promise<RagIndexStats>

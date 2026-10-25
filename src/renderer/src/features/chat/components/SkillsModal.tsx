@@ -21,6 +21,12 @@ export function SkillsView(): ReactNode {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // GitHub Import mode
+  const [isImporting, setIsImporting] = useState(false)
+  const [importUrl, setImportUrl] = useState('')
+  const [importLoading, setImportLoading] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+
   const reloadSkills = useCallback(async (selectName?: string): Promise<void> => {
     try {
       const list = await window.deepdesk.skills.list()
@@ -113,6 +119,63 @@ export function SkillsView(): ReactNode {
     }
   }
 
+  const handleDirectImport = async (): Promise<void> => {
+    const url = importUrl.trim()
+    if (!url) {
+      setImportError('Informe a URL do GitHub ou Gist.')
+      return
+    }
+
+    try {
+      setImportLoading(true)
+      setImportError(null)
+      const res = await window.deepdesk.skills.importFromUrl(url)
+
+      if (!res.ok || !res.skill) {
+        setImportError(res.message || 'Falha ao importar skill do GitHub.')
+        return
+      }
+
+      setIsImporting(false)
+      setImportUrl('')
+      await reloadSkills(res.skill.name)
+    } catch (err) {
+      setImportError(String(err))
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
+  const handlePreviewImport = async (): Promise<void> => {
+    const url = importUrl.trim()
+    if (!url) {
+      setImportError('Informe a URL do GitHub ou Gist.')
+      return
+    }
+
+    try {
+      setImportLoading(true)
+      setImportError(null)
+      const res = await window.deepdesk.skills.importFromUrl(url)
+
+      if (!res.ok || !res.skill) {
+        setImportError(res.message || 'Falha ao baixar skill para pré-visualização.')
+        return
+      }
+
+      setEditName(res.skill.name)
+      setEditDescription(res.skill.description)
+      setEditContent(res.skill.body)
+      setIsEditing(true)
+      setIsImporting(false)
+      setImportUrl('')
+    } catch (err) {
+      setImportError(String(err))
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
   const handleDelete = async (name: string): Promise<void> => {
     if (!window.confirm(`Tem certeza que deseja arquivar a skill "${name}"?`)) return
 
@@ -137,16 +200,106 @@ export function SkillsView(): ReactNode {
           Catálogo: {skills.length} skills disponíveis
         </span>
         {!isEditing && (
-          <button
-            type="button"
-            onClick={handleStartCreate}
-            className="flex items-center gap-1.5 rounded-[6px] bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-[var(--app-accent-hover)]"
-          >
-            <span>+</span>
-            <span>Nova Skill</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsImporting((prev) => !prev)
+                setImportError(null)
+              }}
+              className={`flex items-center gap-1.5 rounded-[6px] border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                isImporting
+                  ? 'border-[var(--app-accent)] bg-[var(--app-accent)]/15 text-[var(--app-accent)]'
+                  : 'border-[var(--app-border)] bg-[var(--app-panel)] text-[var(--app-text-soft)] hover:text-[var(--app-text)] hover:border-[var(--app-accent)]'
+              }`}
+            >
+              <span>⬇</span>
+              <span>Importar do GitHub</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsImporting(false)
+                handleStartCreate()
+              }}
+              className="flex items-center gap-1.5 rounded-[6px] bg-[var(--app-accent)] px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-[var(--app-accent-hover)]"
+            >
+              <span>+</span>
+              <span>Nova Skill</span>
+            </button>
+          </div>
         )}
       </div>
+
+      {/* GitHub Import Panel */}
+      {isImporting && !isEditing && (
+        <div className="border-b border-[var(--app-border)] bg-[var(--app-panel-2)]/60 px-5 py-3 animate-in fade-in duration-150">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[11px] font-semibold text-[var(--app-text)]">
+                Importar Skill de Repositório GitHub / Gist
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsImporting(false)
+                  setImportError(null)
+                }}
+                className="text-[10px] text-[var(--app-text-muted)] hover:text-[var(--app-text)]"
+              >
+                ✕ Fechar
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="https://github.com/usuario/repo/blob/main/skills/minha-skill/SKILL.md ou URL raw..."
+                value={importUrl}
+                onChange={(e) => setImportUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleDirectImport()
+                }}
+                disabled={importLoading}
+                className="flex-1 rounded-[6px] border border-[var(--app-border)] bg-[var(--app-panel)] px-3 py-1.5 font-mono text-[11px] text-[var(--app-text)] placeholder:text-[var(--app-text-muted)] focus:border-[var(--app-accent)] focus:outline-hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  void handleDirectImport()
+                }}
+                disabled={importLoading}
+                className="flex items-center gap-1.5 rounded-[6px] bg-[var(--app-accent)] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[var(--app-accent-hover)] disabled:opacity-50"
+              >
+                {importLoading ? 'Baixando...' : 'Importar Direto'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  void handlePreviewImport()
+                }}
+                disabled={importLoading}
+                className="rounded-[6px] border border-[var(--app-border)] bg-[var(--app-panel)] px-3 py-1.5 text-[11px] font-medium text-[var(--app-text-soft)] hover:text-[var(--app-text)] hover:border-[var(--app-accent)] disabled:opacity-50"
+              >
+                Pré-visualizar & Editar
+              </button>
+            </div>
+
+            {importError ? (
+              <div className="rounded-[4px] bg-red-950/40 border border-red-800/60 px-2.5 py-1 text-[10px] text-red-300">
+                {importError}
+              </div>
+            ) : (
+              <span className="text-[10px] text-[var(--app-text-muted)] font-mono">
+                Dica: Suporta URLs do github.com (blob ou tree), links raw.githubusercontent.com e
+                gists. Extrai frontmatter YAML automaticamente.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Content Body */}
       <div className="flex flex-1 overflow-hidden">

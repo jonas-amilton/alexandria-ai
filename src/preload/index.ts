@@ -97,7 +97,14 @@ contextBridge.exposeInMainWorld('deepdesk', {
       content: string
     }): Promise<{ ok: boolean; message?: string }> => ipcRenderer.invoke('skills:save', payload),
     delete: (name: string): Promise<{ ok: boolean; message?: string }> =>
-      ipcRenderer.invoke('skills:delete', name)
+      ipcRenderer.invoke('skills:delete', name),
+    importFromUrl: (
+      url: string
+    ): Promise<{
+      ok: boolean
+      skill?: { name: string; description: string; markdown: string; body: string }
+      message?: string
+    }> => ipcRenderer.invoke('skills:importFromUrl', url)
   },
   rag: {
     index: (projectId: string, projectPath: string): Promise<RagIndexStats> =>

@@ -41,7 +41,7 @@ import {
   listSessions,
   recordExchange
 } from './agent/sessions'
-import { deleteSkill, getSkill, listSkills, saveSkill } from './agent/skills'
+import { deleteSkill, getSkill, listSkills, saveSkill, importSkillFromUrl } from './agent/skills'
 import { streamChatCompletion, type WireMessage } from './chat-completions'
 import { buildCodeGraph } from './graph/codegraph'
 import {
@@ -998,6 +998,15 @@ app.whenReady().then(() => {
   ipcMain.handle('skills:delete', async (event, name: unknown) => {
     validateSender(event)
     return await deleteSkill(String(name ?? ''))
+  })
+
+  ipcMain.handle('skills:importFromUrl', async (event, url: unknown) => {
+    validateSender(event)
+    const urlStr = String(url ?? '').trim()
+    if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
+      return { ok: false, message: 'URL inválida. Forneça um link HTTP ou HTTPS do GitHub/Gist.' }
+    }
+    return await importSkillFromUrl(urlStr)
   })
 
   // ── IPC: rag ──────────────────────────────────────────────────────────
