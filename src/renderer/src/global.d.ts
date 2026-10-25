@@ -83,6 +83,10 @@ declare global {
       agent: {
         inspect: () => Promise<AgentInspectResult>
       }
+      agents: {
+        getGlobal: () => Promise<string>
+        saveGlobal: (content: string) => Promise<{ ok: boolean; message?: string }>
+      }
       graph: {
         build: (targetDir?: string) => Promise<CodeGraphData>
       }

@@ -122,6 +122,11 @@ contextBridge.exposeInMainWorld('deepdesk', {
   agent: {
     inspect: (): Promise<AgentInspectResult> => ipcRenderer.invoke('agent:inspect')
   },
+  agents: {
+    getGlobal: (): Promise<string> => ipcRenderer.invoke('agents:getGlobal'),
+    saveGlobal: (content: string): Promise<{ ok: boolean; message?: string }> =>
+      ipcRenderer.invoke('agents:saveGlobal', content)
+  },
   graph: {
     build: (targetDir?: string): Promise<CodeGraphData> =>
       ipcRenderer.invoke('graph:build', targetDir)

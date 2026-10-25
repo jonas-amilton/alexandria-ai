@@ -209,7 +209,29 @@ Follow these steps to analyze the code diff...`
     const gistUrls = resolveGithubRawUrls('https://gist.github.com/testuser/123456789abcdef')
     assert.equal(gistUrls[0], 'https://gist.githubusercontent.com/testuser/123456789abcdef/raw')
 
+    // Repo URL with .git (ponytail case)
+    const repoGitUrls = resolveGithubRawUrls('https://github.com/DietrichGebert/ponytail.git')
+    assert(
+      repoGitUrls.includes(
+        'https://raw.githubusercontent.com/DietrichGebert/ponytail/main/skills/ponytail/SKILL.md'
+      ),
+      'Must include candidates for skills/ponytail/SKILL.md'
+    )
+
     console.log('   ✓ GitHub URL resolution for skill imports verified.')
+
+    // ── Test 6: Global AGENTS.md Persistence ────────────────────────────────
+    console.log('\n6. Testing Global AGENTS.md Persistence...')
+    const { readGlobalAgentsMd, saveGlobalAgentsMd } =
+      await import('../src/main/agent/agents-md.ts')
+    const initial = await readGlobalAgentsMd()
+    assert(initial.includes('# AGENTS.md'), 'Must have default AGENTS.md heading')
+    await saveGlobalAgentsMd('# Custom AGENTS.md\n\nBe fast and accurate.')
+    const updated = await readGlobalAgentsMd()
+    assert.equal(updated, '# Custom AGENTS.md\n\nBe fast and accurate.')
+    // restore initial
+    await saveGlobalAgentsMd(initial)
+    console.log('   ✓ Global AGENTS.md read, write, and restore verified.')
 
     console.log('\n🎉 ALL TESTS PASSED! Multi-Project, Skills and RAG are working perfectly.')
   } finally {

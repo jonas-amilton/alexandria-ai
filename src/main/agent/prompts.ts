@@ -7,6 +7,7 @@ export interface AgentPromptContext {
   memory: MemorySnapshot
   skills: SkillRecord[]
   mode?: 'agent' | 'plan'
+  globalAgentsMd?: string
   projectContext?: {
     name: string
     path: string
@@ -77,6 +78,11 @@ Your sole purpose is to research, analyze the repository, and design a high-qual
 }
 ## Response language
 Always respond in the same language as the user's message. If the user writes in Portuguese, respond in Portuguese. If the user writes in English, respond in English. Match the user's language exactly.
+${
+  context.globalAgentsMd
+    ? `\n## Global Agent Guidelines (AGENTS.md)\n${context.globalAgentsMd.trim()}\n`
+    : ''
+}
 
 ## Tool use
 - You MUST use tools to take action — do not describe what you would do or plan to do without actually doing it.

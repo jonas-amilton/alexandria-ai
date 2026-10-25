@@ -71,26 +71,55 @@ function splitFrontmatter(markdown: string): {
     return { fields: {}, body: normalized }
   }
 
+  const frontmatterStr = normalized.slice(4, end)
   const fields: Record<string, string> = {}
+  let currentKey: string | null = null
+  let currentValue: string[] = []
+  let isFolded = false
+  let isLiteral = false
 
-  for (const line of normalized.slice(4, end).split('\n')) {
-    const match = /^([A-Za-z0-9_.-]+):\s*(.*)$/.exec(line)
-
-    if (!match) {
-      continue
+  const commitCurrent = (): void => {
+    if (currentKey) {
+      let val = ''
+      if (isFolded) {
+        val = currentValue.join(' ').replace(/\s+/g, ' ').trim()
+      } else if (isLiteral) {
+        val = currentValue.join('\n').trim()
+      } else {
+        val = currentValue.join(' ').trim()
+      }
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
+        val = val.slice(1, -1)
+      }
+      fields[currentKey] = val
     }
-
-    let value = match[2].trim()
-
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1)
-    }
-
-    fields[match[1]] = value
+    currentKey = null
+    currentValue = []
+    isFolded = false
+    isLiteral = false
   }
+
+  for (const line of frontmatterStr.split('\n')) {
+    const keyMatch = /^([A-Za-z0-9_.-]+):\s*(.*)$/.exec(line)
+    if (keyMatch) {
+      commitCurrent()
+      currentKey = keyMatch[1]
+      const rawVal = keyMatch[2].trim()
+      if (rawVal === '>') {
+        isFolded = true
+      } else if (rawVal === '|') {
+        isLiteral = true
+      } else if (rawVal.length > 0) {
+        currentValue.push(rawVal)
+      }
+    } else if (currentKey && /^\s+/.test(line)) {
+      currentValue.push(line.trim())
+    }
+  }
+  commitCurrent()
 
   return { fields, body: normalized.slice(end + 5) }
 }
@@ -317,10 +346,13 @@ export async function deleteSkill(name: string): Promise<SkillMutation> {
 }
 
 export function resolveGithubRawUrls(rawUrl: string): string[] {
-  const trimmed = rawUrl.trim()
+  const clean = rawUrl
+    .trim()
+    .replace(/\.git$/i, '')
+    .replace(/\/+$/, '')
 
   try {
-    const parsed = new URL(trimmed)
+    const parsed = new URL(clean)
 
     if (parsed.hostname === 'github.com') {
       const parts = parsed.pathname.split('/').filter(Boolean)
@@ -347,13 +379,24 @@ export function resolveGithubRawUrls(rawUrl: string): string[] {
         ]
       }
 
-      // https://github.com/owner/repo
-      if (parts.length === 2) {
-        const [owner, repo] = parts
-        return [
-          `https://raw.githubusercontent.com/${owner}/${repo}/main/SKILL.md`,
-          `https://raw.githubusercontent.com/${owner}/${repo}/master/SKILL.md`
-        ]
+      // https://github.com/owner/repo or https://github.com/owner/repo/skills
+      if (parts.length === 2 || (parts.length === 3 && parts[2] === 'skills')) {
+        const owner = parts[0]
+        const repo = parts[1]
+        const list: string[] = []
+        for (const branch of ['main', 'master']) {
+          list.push(
+            `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/skills/${repo}/SKILL.md`,
+            `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/skills/${repo}/skill.md`,
+            `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/skills/SKILL.md`,
+            `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/skills/skill.md`,
+            `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/SKILL.md`,
+            `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/skill.md`,
+            `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/.gemini/skills/${repo}/SKILL.md`,
+            `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/README.md`
+          )
+        }
+        return list
       }
     }
 
@@ -365,9 +408,9 @@ export function resolveGithubRawUrls(rawUrl: string): string[] {
       }
     }
 
-    return [trimmed]
+    return [clean]
   } catch {
-    return [trimmed]
+    return [clean]
   }
 }
 
@@ -457,8 +500,69 @@ export async function parseSkillFromUrl(url: string): Promise<{
 export async function importSkillFromUrl(
   url: string,
   autoSave = true
-): Promise<{ ok: boolean; skill?: SkillRecord; message?: string }> {
+): Promise<{ ok: boolean; skill?: SkillRecord; message?: string; count?: number }> {
   try {
+    const clean = url
+      .trim()
+      .replace(/\.git$/i, '')
+      .replace(/\/+$/, '')
+
+    // Check if repo root contains multiple skills in skills/
+    if (autoSave) {
+      try {
+        const parsedUrl = new URL(clean)
+        if (parsedUrl.hostname === 'github.com') {
+          const parts = parsedUrl.pathname.split('/').filter(Boolean)
+          if (parts.length === 2 || (parts.length === 3 && parts[2] === 'skills')) {
+            const [owner, repo] = parts
+            const apiRes = await fetch(
+              `https://api.github.com/repos/${owner}/${repo}/contents/skills`,
+              {
+                headers: { 'User-Agent': 'Alexandria-AI/1.0.0' }
+              }
+            )
+            if (apiRes.ok) {
+              const items = (await apiRes.json()) as Array<{ name: string; type: string }>
+              if (Array.isArray(items)) {
+                const dirItems = items.filter(
+                  (it) => it.type === 'dir' && isValidSkillName(it.name)
+                )
+                if (dirItems.length > 0) {
+                  const importedSkills: SkillRecord[] = []
+                  for (const it of dirItems) {
+                    try {
+                      const itemUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/skills/${it.name}/SKILL.md`
+                      const parsed = await parseSkillFromUrl(itemUrl)
+                      await saveSkill(parsed.name, parsed.description, parsed.body)
+                      importedSkills.push({
+                        name: parsed.name,
+                        description: parsed.description,
+                        body: parsed.body,
+                        markdown: parsed.markdown
+                      })
+                    } catch {
+                      // continue with next
+                    }
+                  }
+                  if (importedSkills.length > 0) {
+                    const primary = importedSkills.find((s) => s.name === repo) ?? importedSkills[0]
+                    return {
+                      ok: true,
+                      skill: primary,
+                      count: importedSkills.length,
+                      message: `Foram importadas ${importedSkills.length} skills do repositório: ${importedSkills.map((s) => s.name).join(', ')}.`
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // continue to single skill resolution
+      }
+    }
+
     const parsed = await parseSkillFromUrl(url)
 
     if (autoSave) {

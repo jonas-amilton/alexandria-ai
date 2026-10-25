@@ -42,6 +42,7 @@ import {
   recordExchange
 } from './agent/sessions'
 import { deleteSkill, getSkill, listSkills, saveSkill, importSkillFromUrl } from './agent/skills'
+import { readGlobalAgentsMd, saveGlobalAgentsMd } from './agent/agents-md'
 import { streamChatCompletion, type WireMessage } from './chat-completions'
 import { buildCodeGraph } from './graph/codegraph'
 import {
@@ -760,7 +761,11 @@ app.whenReady().then(() => {
     ;(async () => {
       try {
         if (isLoopMode) {
-          const [memory, skills] = await Promise.all([loadMemorySnapshot(), listSkills()])
+          const [memory, skills, globalAgentsMd] = await Promise.all([
+            loadMemorySnapshot(),
+            listSkills(),
+            readGlobalAgentsMd()
+          ])
           let projectMemory = ''
           if (currentProject) {
             try {
@@ -776,6 +781,7 @@ app.whenReady().then(() => {
             memory,
             skills,
             mode,
+            globalAgentsMd,
             projectContext: currentProject
               ? {
                   name: currentProject.name,
@@ -1043,6 +1049,18 @@ app.whenReady().then(() => {
     validateSender(event)
     await mcpManager.loadForProject(String(projectPath ?? ''))
     return mcpManager.getStatuses()
+  })
+
+  // ── IPC: agents (AGENTS.md) ──────────────────────────────────────────
+
+  ipcMain.handle('agents:getGlobal', async (event) => {
+    validateSender(event)
+    return await readGlobalAgentsMd()
+  })
+
+  ipcMain.handle('agents:saveGlobal', async (event, content: unknown) => {
+    validateSender(event)
+    return await saveGlobalAgentsMd(String(content ?? ''))
   })
 
   // ── IPC: agent:inspect ────────────────────────────────────────────────

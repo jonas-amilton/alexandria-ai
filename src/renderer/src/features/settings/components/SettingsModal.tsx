@@ -23,7 +23,14 @@ interface SettingsModalProps {
   onClearApiKey: (provider: ProviderId) => Promise<SettingsStatus>
 }
 
-export type SettingsTab = 'openrouter' | 'deepseek' | 'mcp' | 'memory' | 'skills' | 'codegraph'
+export type SettingsTab =
+  | 'openrouter'
+  | 'deepseek'
+  | 'mcp'
+  | 'memory'
+  | 'skills'
+  | 'codegraph'
+  | 'agents'
 type ModelCategoryFilter = 'free' | 'popular' | 'all'
 
 export default function SettingsModal({
@@ -228,7 +235,7 @@ export default function SettingsModal({
           </button>
         </div>
 
-        {/* Navigation Tabs (Modelos, MCP, Memória, Skills, CodeGraph) */}
+        {/* Navigation Tabs (Modelos, MCP, Memória, Skills, CodeGraph, AGENTS.md) */}
         <div className="flex flex-wrap border-b border-[var(--app-border)] bg-[var(--app-panel-2)] px-6 gap-1 overflow-x-auto">
           {PROVIDER_IDS.map((prov) => {
             const isSelected = activeTab === prov
@@ -247,7 +254,6 @@ export default function SettingsModal({
                     : 'border-transparent text-[var(--app-text-soft)] hover:text-[var(--app-text)]'
                 }`}
               >
-                <span>{prov === 'openrouter' ? '🟣' : '🔵'}</span>
                 <span>{PROVIDERS[prov].label}</span>
                 {isKeySet ? (
                   <span className="rounded-full bg-emerald-950/60 border border-emerald-800/80 px-1.5 py-0.2 text-[8px] font-semibold text-emerald-400">
@@ -271,7 +277,6 @@ export default function SettingsModal({
                 : 'border-transparent text-[var(--app-text-soft)] hover:text-[var(--app-text)]'
             }`}
           >
-            <span>🔌</span>
             <span>MCP</span>
             <span className="rounded-full bg-blue-950/60 border border-blue-800/80 px-1.5 py-0.2 text-[8px] font-semibold text-blue-400">
               {mcpStatuses.filter((s) => s.connected).length}
@@ -287,7 +292,6 @@ export default function SettingsModal({
                 : 'border-transparent text-[var(--app-text-soft)] hover:text-[var(--app-text)]'
             }`}
           >
-            <span>🧠</span>
             <span>Memória</span>
           </button>
 
@@ -300,7 +304,6 @@ export default function SettingsModal({
                 : 'border-transparent text-[var(--app-text-soft)] hover:text-[var(--app-text)]'
             }`}
           >
-            <span>⚡</span>
             <span>Skills</span>
           </button>
 
@@ -313,8 +316,19 @@ export default function SettingsModal({
                 : 'border-transparent text-[var(--app-text-soft)] hover:text-[var(--app-text)]'
             }`}
           >
-            <span>🕸️</span>
             <span>CodeGraph</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('agents')}
+            className={`flex items-center gap-1.5 py-3 px-3 text-xs font-medium border-b-2 transition-colors ${
+              activeTab === 'agents'
+                ? 'border-[var(--app-accent)] text-[var(--app-accent)]'
+                : 'border-transparent text-[var(--app-text-soft)] hover:text-[var(--app-text)]'
+            }`}
+          >
+            <span>AGENTS.md</span>
           </button>
         </div>
 
@@ -326,6 +340,8 @@ export default function SettingsModal({
             <SkillsView />
           ) : activeTab === 'codegraph' ? (
             <CodeGraphView targetDir={activeProjectPath} />
+          ) : activeTab === 'agents' ? (
+            <AgentsMdView />
           ) : (
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {activeTab === 'mcp' ? (
@@ -751,6 +767,156 @@ export default function SettingsModal({
           >
             Concluir
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const DEFAULT_AGENTS_TEMPLATE = `# AGENTS.md — Global Agent Guidelines
+
+## Persona & Core Principles
+- You are Alexandria.AI, an autonomous senior software engineering agent.
+- Prioritize concise, clear, and actionable answers without unnecessary flattery or conversational filler.
+- Ground your analysis in actual repository code and architectural dependencies.
+
+## Code Quality Standards
+- Write clean, maintainable, modular, and self-documenting code.
+- Prefer existing standard library and modern native platform features before adding external dependencies.
+- Follow existing patterns and naming conventions in the repository.
+
+## Safety & Verification
+- Never delete or overwrite files without checking dependencies and preserving essential comments.
+- Always verify your work with automated tests and typechecks before reporting completion.
+`
+
+function AgentsMdView(): ReactNode {
+  const [content, setContent] = useState('')
+  const [savedContent, setSavedContent] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [statusMsg, setStatusMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  useEffect(() => {
+    let disposed = false
+    window.deepdesk.agents
+      .getGlobal()
+      .then((text) => {
+        if (!disposed) {
+          setContent(text)
+          setSavedContent(text)
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (!disposed) {
+          setStatusMsg({ ok: false, text: `Erro ao carregar: ${String(err)}` })
+          setLoading(false)
+        }
+      })
+    return () => {
+      disposed = true
+    }
+  }, [])
+
+  const handleSave = async (): Promise<void> => {
+    try {
+      setSaving(true)
+      setStatusMsg(null)
+      const res = await window.deepdesk.agents.saveGlobal(content)
+      if (res.ok) {
+        setSavedContent(content)
+        setStatusMsg({
+          ok: true,
+          text: 'AGENTS.md global salvo com sucesso. Aplicado aos próximos turnos do agente.'
+        })
+      } else {
+        setStatusMsg({ ok: false, text: res.message || 'Erro ao salvar.' })
+      }
+    } catch (err) {
+      setStatusMsg({ ok: false, text: String(err) })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isDirty = content !== savedContent
+  const charCount = content.length
+  const lineCount = content ? content.split('\n').length : 0
+
+  return (
+    <div className="flex flex-1 flex-col h-full overflow-hidden bg-[var(--app-panel)]">
+      {/* Top Bar */}
+      <div className="flex items-center justify-between border-b border-[var(--app-border)] px-6 py-3 bg-[var(--app-panel-2)]/30">
+        <div>
+          <h3 className="text-xs font-semibold text-[var(--app-text)] font-mono">
+            AGENTS.md Global
+          </h3>
+          <p className="text-[10px] text-[var(--app-text-muted)]">
+            Diretrizes globais de persona, padrões de engenharia e instruções injetadas no System
+            Prompt do agente.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('Deseja restaurar as diretrizes padrão de AGENTS.md?')) {
+                setContent(DEFAULT_AGENTS_TEMPLATE)
+              }
+            }}
+            className="rounded-[6px] border border-[var(--app-border)] bg-[var(--app-panel)] px-2.5 py-1 text-[11px] font-medium text-[var(--app-text-soft)] hover:text-[var(--app-text)] hover:border-[var(--app-accent)] transition-colors"
+          >
+            Restaurar Padrão
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={!isDirty || saving}
+            className="rounded-[6px] bg-[var(--app-accent)] px-3 py-1 text-[11px] font-medium text-white hover:bg-[var(--app-accent-hover)] disabled:opacity-40 transition-all"
+          >
+            {saving ? 'Salvando...' : isDirty ? 'Salvar Alterações' : 'Salvo'}
+          </button>
+        </div>
+      </div>
+
+      {statusMsg && (
+        <div
+          className={`px-6 py-2 text-[10px] font-mono border-b ${
+            statusMsg.ok
+              ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300'
+              : 'bg-red-950/40 border-red-800/60 text-red-300'
+          }`}
+        >
+          {statusMsg.text}
+        </div>
+      )}
+
+      {/* Editor */}
+      <div className="flex-1 p-5 overflow-hidden flex flex-col">
+        {loading ? (
+          <div className="flex flex-1 items-center justify-center text-xs text-[var(--app-text-muted)]">
+            Carregando AGENTS.md...
+          </div>
+        ) : (
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="# AGENTS.md — Global Agent Guidelines..."
+            className="flex-1 w-full resize-none rounded-[8px] border border-[var(--app-border)] bg-[var(--app-panel-2)]/50 p-4 font-mono text-[11px] leading-relaxed text-[var(--app-text)] focus:border-[var(--app-accent)] focus:outline-hidden"
+          />
+        )}
+      </div>
+
+      {/* Footer Stats */}
+      <div className="flex items-center justify-between border-t border-[var(--app-border)] bg-[var(--app-panel-2)]/40 px-6 py-2 text-[10px] text-[var(--app-text-muted)] font-mono">
+        <div className="flex items-center gap-4">
+          <span>{lineCount} linhas</span>
+          <span>{charCount} caracteres</span>
+        </div>
+        <div>
+          Arquivo:{' '}
+          <code className="text-[var(--app-text-soft)]">~/.config/alexandria-ai/AGENTS.md</code>
         </div>
       </div>
     </div>
