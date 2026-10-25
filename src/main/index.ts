@@ -763,7 +763,7 @@ app.whenReady().then(() => {
         if (isLoopMode) {
           const [memory, skills, globalAgentsMd] = await Promise.all([
             loadMemorySnapshot(),
-            listSkills(),
+            listSkills(currentProject?.path),
             readGlobalAgentsMd()
           ])
           let projectMemory = ''
@@ -782,6 +782,7 @@ app.whenReady().then(() => {
             skills,
             mode,
             globalAgentsMd,
+            userMessage: message,
             projectContext: currentProject
               ? {
                   name: currentProject.name,

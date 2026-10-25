@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 import { mkdir, readFile, rename, unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 
-import { app } from 'electron'
+import * as electron from 'electron'
 
 // Hermes' built-in memory is two plain-text files, not a database:
 //   memories/MEMORY.md — agent notes (environment facts, conventions, lessons)
@@ -38,7 +38,11 @@ const FILE_NAMES: Record<MemoryTarget, string> = {
 export type MemoryMutation = { ok: true } | { ok: false; message: string }
 
 function memoryDir(): string {
-  return join(app.getPath('userData'), MEMORY_DIR)
+  const electronApp = (electron as unknown as { app?: typeof import('electron').app }).app
+  if (electronApp?.getPath) {
+    return join(electronApp.getPath('userData'), MEMORY_DIR)
+  }
+  return join(process.env.HOME || '/tmp', '.alexandria', MEMORY_DIR)
 }
 
 function memoryFilePath(target: MemoryTarget): string {

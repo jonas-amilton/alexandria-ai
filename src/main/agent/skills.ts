@@ -22,6 +22,7 @@ export interface SkillRecord {
   description: string
   markdown: string
   body: string
+  scope?: 'global' | 'project'
 }
 
 export type SkillMutation = { ok: true } | { ok: false; message: string }
@@ -32,6 +33,15 @@ function skillsRoot(): string {
     return join(electronApp.getPath('userData'), SKILLS_DIR)
   }
   return join(process.env.HOME || '/tmp', '.alexandria', SKILLS_DIR)
+}
+
+export function projectSkillRoots(projectPath?: string): string[] {
+  if (!projectPath) return []
+  return [
+    join(projectPath, '.alexandria', SKILLS_DIR),
+    join(projectPath, '.agents', SKILLS_DIR),
+    join(projectPath, SKILLS_DIR)
+  ]
 }
 
 function skillDir(name: string): string {
@@ -128,20 +138,21 @@ function buildSkillMarkdown(name: string, description: string, body: string): st
   return `---\nname: ${name}\ndescription: ${description}\n---\n\n${body.trim()}\n`
 }
 
-async function readSkill(name: string): Promise<SkillRecord | null> {
-  if (!isValidSkillName(name)) {
-    return null
-  }
-
+async function readSkillFromPath(
+  filePath: string,
+  fallbackName: string,
+  scope: 'global' | 'project'
+): Promise<SkillRecord | null> {
   try {
-    const markdown = await readFile(skillFilePath(name), 'utf8')
+    const markdown = await readFile(filePath, 'utf8')
     const { fields, body } = splitFrontmatter(markdown)
 
     return {
-      name: fields.name?.trim() || name,
+      name: fields.name?.trim() || fallbackName,
       description: fields.description?.trim() || '',
       markdown,
-      body
+      body,
+      scope
     }
   } catch (err) {
     if (isEnoent(err)) {
@@ -150,6 +161,33 @@ async function readSkill(name: string): Promise<SkillRecord | null> {
 
     throw err
   }
+}
+
+async function listSkillsInRoot(root: string, scope: 'global' | 'project'): Promise<SkillRecord[]> {
+  let entries
+  try {
+    entries = await readdir(root, { withFileTypes: true })
+  } catch (err) {
+    if (isEnoent(err)) {
+      return []
+    }
+    throw err
+  }
+
+  const skills = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+      .map((entry) => readSkillFromPath(join(root, entry.name, SKILL_FILENAME), entry.name, scope))
+  )
+
+  return skills.filter((skill): skill is SkillRecord => skill !== null)
+}
+
+async function readSkill(name: string): Promise<SkillRecord | null> {
+  if (!isValidSkillName(name)) {
+    return null
+  }
+  return readSkillFromPath(skillFilePath(name), name, 'global')
 }
 
 async function writeSkill(name: string, markdown: string): Promise<void> {
@@ -173,31 +211,40 @@ async function writeSkill(name: string, markdown: string): Promise<void> {
   }
 }
 
-export async function listSkills(): Promise<SkillRecord[]> {
-  let entries
+export async function listSkills(projectPath?: string): Promise<SkillRecord[]> {
+  const skillMap = new Map<string, SkillRecord>()
 
-  try {
-    entries = await readdir(skillsRoot(), { withFileTypes: true })
-  } catch (err) {
-    if (isEnoent(err)) {
-      return []
-    }
-
-    throw err
+  // 1. Global skills
+  const globalSkills = await listSkillsInRoot(skillsRoot(), 'global')
+  for (const skill of globalSkills) {
+    skillMap.set(skill.name, skill)
   }
 
-  const skills = await Promise.all(
-    entries
-      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
-      .map((entry) => readSkill(entry.name))
-  )
+  // 2. Project skills (override global if name matches)
+  for (const root of projectSkillRoots(projectPath)) {
+    const projSkills = await listSkillsInRoot(root, 'project')
+    for (const skill of projSkills) {
+      skillMap.set(skill.name, skill)
+    }
+  }
 
-  return skills
-    .filter((skill): skill is SkillRecord => skill !== null)
-    .sort((left, right) => left.name.localeCompare(right.name))
+  return Array.from(skillMap.values()).sort((left, right) => left.name.localeCompare(right.name))
 }
 
-export async function getSkill(name: string): Promise<SkillRecord | null> {
+export async function getSkill(name: string, projectPath?: string): Promise<SkillRecord | null> {
+  if (!isValidSkillName(name)) {
+    return null
+  }
+
+  // 1. Check project directories first (Project Precedence)
+  for (const root of projectSkillRoots(projectPath)) {
+    const skill = await readSkillFromPath(join(root, name, SKILL_FILENAME), name, 'project')
+    if (skill) {
+      return skill
+    }
+  }
+
+  // 2. Fallback to global
   return readSkill(name)
 }
 

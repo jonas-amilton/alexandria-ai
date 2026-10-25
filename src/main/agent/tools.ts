@@ -26,6 +26,7 @@ import {
 } from '../graph/codegraph'
 import { searchRag } from '../rag/indexer'
 import { mcpManager } from '../mcp/manager'
+import { getProjectsState } from '../projects'
 
 // ── Tool schemas ──────────────────────────────────────────────────────────
 
@@ -428,7 +429,17 @@ export async function executeAgentTool(
       return runMemoryTool(rawArguments)
 
     case 'skills_list': {
-      const skills = await listSkills()
+      let projectPath: string | undefined
+      if (context?.projectId) {
+        try {
+          const pState = await getProjectsState()
+          const proj = pState.projects.find((p) => p.id === context.projectId)
+          projectPath = proj?.path
+        } catch {
+          // ignore
+        }
+      }
+      const skills = await listSkills(projectPath)
 
       if (skills.length === 0) {
         return ok('No skills saved yet.')
@@ -453,7 +464,18 @@ export async function executeAgentTool(
         return fail(parsed.message)
       }
 
-      const skill = await getSkill(parsed.value.name)
+      let projectPath: string | undefined
+      if (context?.projectId) {
+        try {
+          const pState = await getProjectsState()
+          const proj = pState.projects.find((p) => p.id === context.projectId)
+          projectPath = proj?.path
+        } catch {
+          // ignore
+        }
+      }
+
+      const skill = await getSkill(parsed.value.name, projectPath)
 
       if (skill === null) {
         return fail(`No skill named "${parsed.value.name}".`)
