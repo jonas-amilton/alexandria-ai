@@ -112,3 +112,24 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* Animações sutis da Coruja Tech */
+@keyframes owl-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes owl-think-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 6px rgba(91, 157, 217, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(91, 157, 217, 0.85));
+  }
+}

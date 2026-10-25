@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, type ReactNode } from 'react'
 import { ToolActivityCard, type ToolActivityItem } from './ToolActivityCard'
 import type { ChatMessage } from '../../../../../shared/chat'
-import mascotImg from '../../../assets/mascot.png'
+import AnimatedOwl from './AnimatedOwl'
 
 /*
   MessageList.tsx — Alexandria.AI
@@ -42,11 +42,7 @@ export function MessageList({
       <div className="mx-auto flex max-w-220 flex-col gap-4 px-6 py-5">
         {!hasContent && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <img
-              src={mascotImg}
-              alt="Alexandria.AI Mascote"
-              className="mb-4 size-24 object-contain drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]"
-            />
+            <AnimatedOwl size="lg" mood="idle" className="mb-4" />
             <div className="mb-2 font-mono text-(length:--text-xs) text-(--color-text-faint)">
               Alexandria.AI — Agente Autônomo & RAG Local
             </div>
@@ -119,10 +115,10 @@ export function MessageList({
         )}
 
         {(isStreaming || (streamingContent.length === 0 && toolActivity.length > 0)) && (
-          <div className="flex items-center gap-1.5 pl-9">
-            <span className="size-1.5 animate-pulse rounded-full bg-(--color-accent-blue)" />
-            <span className="font-mono text-(length:--text-2xs) text-(--color-text-faint)">
-              processando
+          <div className="flex items-center gap-2 pl-9">
+            <AnimatedOwl size="sm" mood="thinking" interactive={false} />
+            <span className="font-mono text-(length:--text-2xs) text-(--color-accent-blue)">
+              raciocinando…
             </span>
           </div>
         )}

@@ -3,7 +3,7 @@ import { useMemo, useState, useRef, useEffect, type ReactNode } from 'react'
 import type { SessionItem } from '../../../../../shared/chat'
 import type { ProjectRecord } from '../../../../../shared/projects'
 import type { RagIndexStats } from '../../../../../shared/rag'
-import mascotImg from '../../../assets/mascot.png'
+import AnimatedOwl from './AnimatedOwl'
 
 /*
   Sidebar.tsx — Alexandria.AI
@@ -103,9 +103,9 @@ export function Sidebar({
       className="flex h-full w-64 shrink-0 flex-col border-r border-(--color-border) bg-(--color-panel) text-(--color-text)"
       aria-label="Navegação de projeto e sessões"
     >
-      {/* Branding com Mascote */}
+      {/* Branding com Coruja Tech */}
       <div className="flex items-center gap-2.5 border-b border-(--color-border) px-3 py-2.5">
-        <img src={mascotImg} alt="Mascote Alexandria.AI" className="size-6 object-contain" />
+        <AnimatedOwl size="sm" mood="idle" />
         <div className="flex flex-col">
           <span className="font-mono text-(length:--text-xs) font-medium text-(--color-text)">
             Alexandria.AI
