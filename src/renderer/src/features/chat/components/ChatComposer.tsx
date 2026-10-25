@@ -1,157 +1,227 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+
+/*
+  ChatComposer.tsx — Alexandria.AI
+
+  Caixa de comando tipo terminal/Raycast:
+  - Sem placeholder genérico de chatbot: muda conforme o modo (agente vs pergunta).
+  - Enter envia; Shift+Enter quebra linha; Cmd/Ctrl+K foca o composer.
+  - Botão de modo agente é um toggle explícito com estado visual claro.
+  - Streaming em andamento = botão de envio vira botão de cancelamento (AbortSignal).
+*/
+
+export type ComposerMode = 'agent' | 'ask'
 
 interface ChatComposerProps {
   value: string
-  disabled: boolean
-  isLoading: boolean
-  agentMode: boolean
   onChange: (value: string) => void
-  onSubmit: () => void
+  onSubmit: (value?: string) => void
   onCancel: () => void
-  onToggleAgentMode: () => void
-  onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void
+  mode?: ComposerMode
+  agentMode?: boolean
+  onModeChange?: (mode: ComposerMode) => void
+  onToggleAgentMode?: () => void
+  isStreaming?: boolean
+  isLoading?: boolean
+  disabled?: boolean
+  isProjectOpen?: boolean
+  modelLabel?: string
+  contextWindowLabel?: string
+  onKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void
 }
 
-function ChatComposer({
+const MODE_CONFIG: Record<ComposerMode, { label: string; placeholder: string }> = {
+  agent: {
+    label: 'Agente',
+    placeholder: 'Descreva a tarefa — o agente vai planejar, usar ferramentas e executar'
+  },
+  ask: {
+    label: 'Pergunta',
+    placeholder: 'Pergunte sobre o código do projeto ativo'
+  }
+}
+
+export function ChatComposer({
   value,
-  disabled,
-  isLoading,
-  agentMode,
   onChange,
   onSubmit,
   onCancel,
+  mode,
+  agentMode,
+  onModeChange,
   onToggleAgentMode,
+  isStreaming = false,
+  isLoading = false,
+  disabled = false,
+  isProjectOpen = true,
+  modelLabel = 'OpenRouter',
+  contextWindowLabel,
   onKeyDown
 }: ChatComposerProps): ReactNode {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [isFocused, setIsFocused] = useState(false)
 
+  // Resolução do modo (suporta tanto mode='agent'|'ask' quanto agentMode boolean)
+  const currentMode: ComposerMode =
+    mode !== undefined ? mode : agentMode !== false ? 'agent' : 'ask'
+
+  const activeStreaming = isStreaming || isLoading
+
+  // Auto-resize do textarea até teto de 200px
   useEffect(() => {
-    const textarea = textareaRef.current
-
-    if (!textarea) {
-      return
-    }
-
-    textarea.style.height = 'auto'
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`
   }, [value])
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
+    onKeyDown?.(event)
+    if (event.defaultPrevented) return
+
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      if (value.trim() && !activeStreaming && !disabled) {
+        onSubmit(value)
+      }
+    }
+  }
+
+  const handleSelectMode = (newMode: ComposerMode): void => {
+    if (onModeChange) {
+      onModeChange(newMode)
+    } else if (onToggleAgentMode) {
+      const willBeAgent = newMode === 'agent'
+      if (willBeAgent !== (currentMode === 'agent')) {
+        onToggleAgentMode()
+      }
+    }
+  }
+
+  const canSubmit = isProjectOpen && value.trim().length > 0 && !activeStreaming && !disabled
+
   return (
-    <div className="flex-shrink-0 bg-[var(--app-bg)] px-4 pb-2.5 pt-3.5 sm:px-6 md:px-8 lg:px-10">
-      <div className="mx-auto w-full">
-        <div className="w-full rounded-[13px] border border-[var(--app-border)] bg-[var(--app-panel-2)] px-3 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.16)]">
-          <textarea
-            ref={textareaRef}
-            className="w-full resize-none border-none bg-transparent text-[11px] leading-relaxed text-[var(--app-text)] placeholder-[var(--app-text-muted)] outline-none"
-            style={{ minHeight: '36px', maxHeight: '120px' }}
-            placeholder="Pergunte qualquer coisa..."
-            value={value}
-            onChange={(e) => {
-              onChange(e.target.value)
-            }}
-            onKeyDown={onKeyDown}
-            disabled={disabled}
-            rows={1}
-          />
-
-          <div className="mt-2 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              {/* + button — visual only */}
+    <div className="border-t border-(--color-border) bg-(--color-panel) px-3 py-3">
+      <div
+        className={`rounded-(--radius-md) border bg-(--color-surface) transition-colors ${
+          isFocused ? 'border-(--color-accent-blue)' : 'border-(--color-border)'
+        }`}
+      >
+        {/* Barra superior: modo agente + modelo ativo */}
+        <div className="flex items-center justify-between gap-2 border-b border-(--color-border) px-2.5 py-1.5">
+          <div className="flex items-center gap-1 rounded-(--radius-xs) bg-(--color-bg) p-0.5">
+            {(['agent', 'ask'] as const).map((candidate) => (
               <button
+                key={candidate}
                 type="button"
-                aria-label="Anexar"
-                className="flex h-5.5 w-5.5 items-center justify-center rounded-[7px] border border-[var(--app-border-soft)] bg-[var(--app-panel)] text-[var(--app-text-soft)]"
-                disabled
-              >
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                >
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
-
-              {/* Agent mode toggle */}
-              <button
-                type="button"
-                className={`inline-flex h-5.5 items-center gap-1 rounded-full border px-2 text-[9px] transition-colors ${
-                  agentMode
-                    ? 'border-[var(--app-accent)] bg-[rgba(120,92,247,0.18)] text-[var(--app-text)]'
-                    : 'border-[var(--app-border-soft)] bg-[var(--app-panel)] text-[var(--app-text-soft)] hover:text-[var(--app-text)]'
+                onClick={() => handleSelectMode(candidate)}
+                className={`rounded-(--radius-xs) px-2 py-0.5 font-mono text-(length:--text-2xs) transition-colors ${
+                  currentMode === candidate
+                    ? 'bg-(--color-surface-raised) text-(--color-text)'
+                    : 'text-(--color-text-faint) hover:text-(--color-text-muted)'
                 }`}
-                aria-pressed={agentMode}
-                title={
-                  agentMode
-                    ? 'Modo agente ativo — ferramentas e memória habilitadas'
-                    : 'Modo agente desativado — resposta simples'
-                }
-                onClick={onToggleAgentMode}
+                aria-pressed={currentMode === candidate}
               >
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                  <path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z" />
-                </svg>
-                Agente
+                {MODE_CONFIG[candidate].label}
               </button>
+            ))}
+          </div>
 
-              {/* Web chip — visual only */}
-              <span className="inline-flex h-5.5 items-center rounded-full border border-[var(--app-border-soft)] bg-[var(--app-panel)] px-2 text-[9px] text-[var(--app-text-soft)]">
-                Web
-              </span>
-            </div>
-
-            {/* Send / Cancel button */}
-            {isLoading ? (
-              <button
-                type="button"
-                aria-label="Parar geração"
-                className="flex h-[20px] w-[20px] items-center justify-center rounded-[7px] bg-[var(--app-accent)] text-white transition-colors hover:bg-[var(--app-accent-hover)]"
-                onClick={() => {
-                  onCancel()
-                }}
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="4" y="4" width="16" height="16" rx="2" />
-                </svg>
-              </button>
-            ) : (
-              <button
-                type="button"
-                aria-label="Enviar mensagem"
-                className="flex h-[20px] w-[20px] items-center justify-center rounded-[7px] bg-[var(--app-accent)] text-white transition-colors hover:bg-[var(--app-accent-hover)] disabled:opacity-40"
-                disabled={!value.trim()}
-                onClick={() => {
-                  onSubmit()
-                }}
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="12" y1="19" x2="12" y2="5" />
-                  <polyline points="5 12 12 5 19 12" />
-                </svg>
-              </button>
+          <div
+            className="flex items-center gap-1.5 rounded-(--radius-xs) border border-(--color-border) px-1.5 py-0.5 font-mono text-(length:--text-2xs) text-(--color-text-faint)"
+            title="Modelo ativo"
+          >
+            <span className="max-w-48 truncate">{modelLabel}</span>
+            {contextWindowLabel && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>{contextWindowLabel}</span>
+              </>
             )}
           </div>
         </div>
 
-        <p className="mt-2 text-center text-[8px] text-[#536174]">
-          Alexandria.AI pode cometer erros. Verifique informações importantes.
-        </p>
+        {/* Campo de texto */}
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          disabled={!isProjectOpen || disabled}
+          rows={1}
+          placeholder={
+            isProjectOpen ? MODE_CONFIG[currentMode].placeholder : 'Abra um projeto para começar'
+          }
+          className="max-h-50 w-full resize-none bg-transparent px-3 py-2.5 text-(length:--text-base) text-(--color-text) placeholder:text-(--color-text-faint) focus:outline-none disabled:cursor-not-allowed"
+        />
+
+        {/* Rodapé: atalhos + ação */}
+        <div className="flex items-center justify-between gap-2 px-2.5 py-1.5">
+          <div className="flex items-center gap-2.5 font-mono text-(length:--text-2xs) text-(--color-text-faint)">
+            <KeyHint keys={['Enter']} label="enviar" />
+            <KeyHint keys={['Shift', 'Enter']} label="nova linha" />
+            <KeyHint keys={['⌘', 'K']} label="focar" />
+          </div>
+
+          {activeStreaming ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex items-center gap-1.5 rounded-(--radius-sm) border border-(--color-border-strong) px-2.5 py-1 text-(length:--text-xs) text-(--color-text) transition-colors hover:border-(--color-accent-red) hover:text-(--color-accent-red)"
+            >
+              <StopIcon className="size-3" />
+              Cancelar
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => canSubmit && onSubmit(value)}
+              disabled={!canSubmit}
+              className="flex items-center gap-1.5 rounded-(--radius-sm) bg-(--color-accent-blue) px-2.5 py-1 text-(length:--text-xs) font-medium text-(--color-bg) transition-colors disabled:cursor-not-allowed disabled:bg-(--color-surface-raised) disabled:text-(--color-text-faint)"
+            >
+              Enviar
+              <ArrowUpIcon className="size-3" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
+  )
+}
+
+function KeyHint({ keys, label }: { keys: string[]; label: string }): ReactNode {
+  return (
+    <span className="flex items-center gap-1">
+      <span className="flex items-center gap-0.5">
+        {keys.map((key) => (
+          <kbd
+            key={key}
+            className="rounded-(--radius-xs) border border-(--color-border) bg-(--color-bg) px-1 py-0.5 leading-none"
+          >
+            {key}
+          </kbd>
+        ))}
+      </span>
+      {label}
+    </span>
+  )
+}
+
+function StopIcon(props: React.SVGProps<SVGSVGElement>): ReactNode {
+  return (
+    <svg viewBox="0 0 12 12" fill="currentColor" {...props}>
+      <rect x="2" y="2" width="8" height="8" rx="1" />
+    </svg>
+  )
+}
+
+function ArrowUpIcon(props: React.SVGProps<SVGSVGElement>): ReactNode {
+  return (
+    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={1.5} {...props}>
+      <path d="M6 10V2M2.5 5.5L6 2l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }
 

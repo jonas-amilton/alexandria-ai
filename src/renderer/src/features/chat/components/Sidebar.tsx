@@ -1,12 +1,23 @@
-import { useState, useRef, useEffect, type ReactNode } from 'react'
+import { useMemo, useState, useRef, useEffect, type ReactNode } from 'react'
 
 import type { SessionItem } from '../../../../../shared/chat'
 import type { ProjectRecord } from '../../../../../shared/projects'
 import type { RagIndexStats } from '../../../../../shared/rag'
+import mascotImg from '../../../assets/mascot.png'
+
+/*
+  Sidebar.tsx — Alexandria.AI
+
+  Layout de alta densidade estilo painel de IDE (Linear / Zed):
+  - Cabeçalho de projeto com caminho truncado e status do RAG local.
+  - Dropdown discreto para alternar entre projetos recentes ou abrir nova pasta.
+  - Barra de busca de conversas (FTS5) e botão de nova conversa.
+  - Lista de sessões com timestamps relativos em monospace e botão de remoção no hover.
+*/
 
 interface SidebarProps {
   currentSessionId: string
-  activeTitle: string
+  activeTitle?: string
   sessions: SessionItem[]
   activeProject: ProjectRecord | null
   projects: ProjectRecord[]
@@ -18,13 +29,36 @@ interface SidebarProps {
   onOpenProjectDialog: () => void
   onSwitchProject: (id: string) => void
   onRemoveProject: (id: string) => void
-  onOpenMemoryModal: () => void
-  onOpenSkillsModal: () => void
-  onOpenGraphModal: () => void
-  onOpenSettingsModal: () => void
+  onOpenMemoryModal?: () => void
+  onOpenSkillsModal?: () => void
+  onOpenGraphModal?: () => void
+  onOpenSettingsModal?: () => void
 }
 
-function Sidebar({
+function truncatePath(path: string, maxSegments = 2): string {
+  const parts = path.split(/[\\/]/).filter(Boolean)
+  if (parts.length <= maxSegments) return path
+  return `…/${parts.slice(-maxSegments).join('/')}`
+}
+
+function formatRelativeTime(epochMsOrIso?: number | string): string {
+  if (!epochMsOrIso) return ''
+  const epochMs =
+    typeof epochMsOrIso === 'number'
+      ? epochMsOrIso
+      : isNaN(Date.parse(epochMsOrIso))
+        ? 0
+        : Date.parse(epochMsOrIso)
+  if (epochMs === 0) return ''
+
+  const diffSec = Math.max(0, Math.floor((Date.now() - epochMs) / 1000))
+  if (diffSec < 60) return 'agora'
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m`
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h`
+  return `${Math.floor(diffSec / 86400)}d`
+}
+
+export function Sidebar({
   currentSessionId,
   activeTitle,
   sessions,
@@ -37,15 +71,13 @@ function Sidebar({
   onToggleMobile,
   onOpenProjectDialog,
   onSwitchProject,
-  onRemoveProject,
-  onOpenMemoryModal,
-  onOpenSkillsModal,
-  onOpenGraphModal,
-  onOpenSettingsModal
+  onRemoveProject
 }: SidebarProps): ReactNode {
+  const [query, setQuery] = useState('')
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // Fecha o dropdown de projetos ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent): void {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -56,74 +88,104 @@ function Sidebar({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Filtragem local com busca FTS5 / texto
+  const filteredSessions = useMemo(() => {
+    const list = [...sessions]
+    if (!query.trim()) return list
+    const q = query.toLowerCase()
+    return list.filter((s) => s.title.toLowerCase().includes(q))
+  }, [sessions, query])
+
+  const ragIndexed = ragStats && ragStats.indexedFiles > 0
+
   return (
-    <aside className="flex h-full w-[230px] flex-shrink-0 flex-col border-r border-[var(--app-border)] bg-[var(--app-panel)] px-3 pt-3">
-      {/* Branding */}
-      <div className="flex items-center gap-2">
-        <div className="flex h-[24px] w-[24px] flex-shrink-0 items-center justify-center rounded-[7px] bg-[var(--app-accent)] text-[11px] font-semibold text-white">
-          A
-        </div>
-        <div>
-          <div className="text-[13px] font-medium text-[var(--app-text)]">Alexandria.AI</div>
-          <div className="text-[9px] text-[var(--app-text-muted)]">Agente independente</div>
+    <aside
+      className="flex h-full w-64 shrink-0 flex-col border-r border-(--color-border) bg-(--color-panel) text-(--color-text)"
+      aria-label="Navegação de projeto e sessões"
+    >
+      {/* Branding com Mascote */}
+      <div className="flex items-center gap-2.5 border-b border-(--color-border) px-3 py-2.5">
+        <img src={mascotImg} alt="Mascote Alexandria.AI" className="size-6 object-contain" />
+        <div className="flex flex-col">
+          <span className="font-mono text-(length:--text-xs) font-medium text-(--color-text)">
+            Alexandria.AI
+          </span>
+          <span className="font-mono text-(length:--text-2xs) text-(--color-text-faint)">
+            Agente Autônomo
+          </span>
         </div>
       </div>
 
-      {/* Project Selector */}
-      <div className="relative mt-3" ref={dropdownRef}>
+      {/* Cabeçalho de projeto com seletor dropdown */}
+      <div
+        className="relative flex flex-col gap-1.5 border-b border-(--color-border) px-3 py-3"
+        ref={dropdownRef}
+      >
         <button
           type="button"
           onClick={() => setProjectDropdownOpen((prev) => !prev)}
-          className="flex w-full items-center justify-between rounded-[8px] border border-[var(--app-border)] bg-[var(--app-panel-2)]/70 px-2.5 py-1.5 text-left transition-colors hover:border-[var(--app-accent)]"
+          className="group flex w-full items-center justify-between rounded-(--radius-sm) px-1.5 py-1 text-left transition-colors hover:bg-(--color-surface)"
+          title={activeProject?.path ?? 'Nenhum projeto aberto'}
         >
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px]">📁</span>
-              <span className="truncate text-[11px] font-semibold text-[var(--app-text)]">
-                {activeProject?.name || 'Projeto Padrão'}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[9px] text-[var(--app-text-muted)] truncate">
-              {ragStats && ragStats.indexedFiles > 0 ? (
-                <span className="text-emerald-400 font-mono">⚡ {ragStats.indexedFiles} arqs</span>
-              ) : (
-                <span className="truncate">{activeProject?.path || ''}</span>
-              )}
-            </div>
-          </div>
-          <span className="ml-1 text-[10px] text-[var(--app-text-muted)]">▾</span>
+          <span className="truncate font-mono text-(length:--text-xs) text-(--color-text-muted) group-hover:text-(--color-text)">
+            {activeProject ? truncatePath(activeProject.path) : 'Abrir projeto…'}
+          </span>
+          <ChevronDownIcon className="size-3.5 shrink-0 text-(--color-text-faint)" />
         </button>
 
-        {/* Project Dropdown Menu */}
+        {activeProject && (
+          <div className="flex items-center gap-1.5 px-1.5">
+            <span
+              className={`size-1.5 rounded-full ${
+                ragIndexed ? 'bg-(--color-accent-emerald)' : 'bg-(--color-text-faint)'
+              }`}
+              aria-hidden="true"
+            />
+            <span
+              className={`font-mono text-(length:--text-2xs) ${
+                ragIndexed ? 'text-(--color-accent-emerald)' : 'text-(--color-text-faint)'
+              }`}
+            >
+              {ragIndexed ? 'RAG indexado' : 'RAG ocioso'}
+            </span>
+            {ragIndexed && (
+              <span className="font-mono text-(length:--text-2xs) text-(--color-text-faint)">
+                · {ragStats.indexedFiles} arquivos
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Dropdown de projetos */}
         {projectDropdownOpen && (
-          <div className="absolute left-0 top-full z-50 mt-1 w-full rounded-[8px] border border-[var(--app-border)] bg-[var(--app-panel)] p-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+          <div className="absolute left-2.5 right-2.5 top-full z-50 mt-1 rounded-(--radius-sm) border border-(--color-border) bg-(--color-surface) p-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-100">
             <button
               type="button"
               onClick={() => {
                 setProjectDropdownOpen(false)
                 onOpenProjectDialog()
               }}
-              className="flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-[10px] font-medium text-[var(--app-accent)] hover:bg-[var(--app-panel-2)]"
+              className="flex w-full items-center gap-2 rounded-(--radius-xs) px-2 py-1.5 font-mono text-(length:--text-xs) text-(--color-accent-blue) hover:bg-(--color-surface-raised)"
             >
-              <span>+</span>
-              <span>Abrir Pasta do Projeto...</span>
+              <PlusIcon className="size-3" />
+              <span>Abrir pasta do projeto...</span>
             </button>
 
             {projects.length > 0 && (
-              <div className="mt-1 border-t border-[var(--app-border)] pt-1">
-                <div className="px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-[var(--app-text-muted)]">
-                  Projetos Recentes
+              <div className="mt-1 border-t border-(--color-border) pt-1">
+                <div className="px-2 py-0.5 font-mono text-(length:--text-2xs) uppercase tracking-wider text-(--color-text-faint)">
+                  Recentes
                 </div>
-                <div className="max-h-[160px] overflow-y-auto space-y-0.5 mt-0.5">
+                <div className="max-h-48 space-y-0.5 overflow-y-auto mt-0.5">
                   {projects.map((p) => {
                     const isCurrent = p.id === activeProject?.id
                     return (
                       <div
                         key={p.id}
-                        className={`group flex items-center justify-between rounded-[6px] px-2 py-1 text-[10px] transition-colors ${
+                        className={`group flex items-center justify-between rounded-(--radius-xs) px-2 py-1 text-(length:--text-xs) transition-colors ${
                           isCurrent
-                            ? 'bg-[var(--app-accent)]/15 text-[var(--app-accent)] font-medium'
-                            : 'text-[var(--app-text-soft)] hover:bg-[var(--app-panel-2)] hover:text-[var(--app-text)]'
+                            ? 'bg-(--color-surface-raised) text-(--color-text) font-medium'
+                            : 'text-(--color-text-muted) hover:bg-(--color-surface-raised) hover:text-(--color-text)'
                         }`}
                       >
                         <button
@@ -132,20 +194,20 @@ function Sidebar({
                             setProjectDropdownOpen(false)
                             onSwitchProject(p.id)
                           }}
-                          className="min-w-0 flex-1 text-left truncate flex items-center gap-1.5"
+                          className="min-w-0 flex-1 truncate text-left"
+                          title={p.path}
                         >
-                          <span className="text-[10px]">📁</span>
-                          <span className="truncate">{p.name}</span>
+                          {p.name}
                         </button>
                         {projects.length > 1 && (
                           <button
                             type="button"
-                            title="Remover da lista de recentes"
+                            title="Remover da lista"
                             onClick={(e) => {
                               e.stopPropagation()
                               onRemoveProject(p.id)
                             }}
-                            className="ml-1 opacity-0 group-hover:opacity-100 rounded px-1 text-[9px] text-[var(--app-text-muted)] hover:text-red-400"
+                            className="ml-1 opacity-0 group-hover:opacity-100 rounded px-1 font-mono text-(length:--text-2xs) text-(--color-text-faint) hover:text-(--color-accent-red)"
                           >
                             ✕
                           </button>
@@ -160,147 +222,124 @@ function Sidebar({
         )}
       </div>
 
-      {/* New conversation button */}
-      <button
-        type="button"
-        aria-label="Nova conversa"
-        className="mt-3 flex h-8 w-full items-center justify-start gap-1.5 rounded-[8px] bg-[var(--app-accent)] px-3 text-[11px] font-medium text-white transition-colors hover:bg-[var(--app-accent-hover)]"
-        onClick={() => {
-          onNewChat()
-          onToggleMobile?.()
-        }}
-      >
-        <span className="text-base leading-none">+</span>
-        <span>Nova conversa</span>
-      </button>
-
-      {/* Tools & Inspect quick access (4 buttons grid) */}
-      <div className="mt-3 grid grid-cols-4 gap-1 border-b border-[var(--app-border)] pb-3">
+      {/* Busca FTS5 + nova sessão */}
+      <div className="flex items-center gap-1.5 border-b border-(--color-border) px-3 py-2">
+        <div className="relative flex-1">
+          <SearchIcon className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-(--color-text-faint)" />
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar conversas..."
+            className="w-full rounded-(--radius-sm) border border-(--color-border) bg-(--color-bg) py-1 pl-7 pr-2 font-mono text-(length:--text-xs) text-(--color-text) placeholder:text-(--color-text-faint) focus:border-(--color-accent-blue) focus:outline-none"
+          />
+        </div>
         <button
           type="button"
           onClick={() => {
-            onOpenMemoryModal()
+            onNewChat()
             onToggleMobile?.()
           }}
-          title="Memória Persistente (USER.md e MEMORY.md)"
-          className="flex flex-col items-center justify-center gap-0.5 rounded-[6px] border border-[var(--app-border)] bg-[var(--app-panel-2)] py-1.5 text-[8px] font-medium text-[var(--app-text-soft)] transition-colors hover:border-[var(--app-accent)] hover:text-[var(--app-text)]"
+          disabled={!activeProject}
+          className="flex size-7 shrink-0 items-center justify-center rounded-(--radius-sm) border border-(--color-border) text-(--color-text-muted) transition-colors hover:border-(--color-border-strong) hover:text-(--color-text) disabled:cursor-not-allowed disabled:opacity-40"
+          title="Nova conversa"
         >
-          <span className="text-[11px]">🧠</span>
-          <span>Memória</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            onOpenSkillsModal()
-            onToggleMobile?.()
-          }}
-          title="Gerenciador de Skills"
-          className="flex flex-col items-center justify-center gap-0.5 rounded-[6px] border border-[var(--app-border)] bg-[var(--app-panel-2)] py-1.5 text-[8px] font-medium text-[var(--app-text-soft)] transition-colors hover:border-[var(--app-accent)] hover:text-[var(--app-text)]"
-        >
-          <span className="text-[11px]">⚡</span>
-          <span>Skills</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            onOpenGraphModal()
-            onToggleMobile?.()
-          }}
-          title="CodeGraph do Projeto"
-          className="flex flex-col items-center justify-center gap-0.5 rounded-[6px] border border-[var(--app-border)] bg-[var(--app-panel-2)] py-1.5 text-[8px] font-medium text-[var(--app-text-soft)] transition-colors hover:border-[var(--app-accent)] hover:text-[var(--app-text)]"
-        >
-          <span className="text-[11px]">🕸️</span>
-          <span>Grafo</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            onOpenSettingsModal()
-            onToggleMobile?.()
-          }}
-          title="Configurações de Modelos e MCP"
-          className="flex flex-col items-center justify-center gap-0.5 rounded-[6px] border border-[var(--app-border)] bg-[var(--app-panel-2)] py-1.5 text-[8px] font-medium text-[var(--app-text-soft)] transition-colors hover:border-[var(--app-accent)] hover:text-[var(--app-text)]"
-        >
-          <span className="text-[11px]">⚙️</span>
-          <span>Config</span>
+          <PlusIcon className="size-3.5" />
         </button>
       </div>
 
-      {/* Conversations label */}
-      <div className="mt-3 flex items-center justify-between text-[8px] font-semibold uppercase tracking-[0.12em] text-[var(--app-text-muted)]">
-        <span>Conversas deste Projeto ({sessions.length})</span>
-      </div>
-
-      {/* Conversation list */}
-      <nav className="mt-2 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">
-        {/* If current conversation is not yet saved in SQLite list */}
-        {activeTitle !== 'Nova conversa' && !sessions.some((s) => s.id === currentSessionId) ? (
-          <div className="flex items-center justify-between rounded-[8px] bg-[var(--app-panel-2)] px-2.5 py-2 text-[10px] text-[var(--app-text)]">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="h-[5px] w-[5px] flex-shrink-0 rounded-full bg-[var(--app-accent)] animate-pulse" />
-              <span className="truncate">{activeTitle}</span>
-            </div>
-          </div>
-        ) : null}
-
-        {sessions.map((session) => {
-          const isActive = session.id === currentSessionId
-          return (
-            <div
-              key={session.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                onSelectSession(session.id)
-                onToggleMobile?.()
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  onSelectSession(session.id)
-                  onToggleMobile?.()
-                }
-              }}
-              className={`group flex items-center justify-between rounded-[8px] px-2.5 py-2 text-[10px] transition-colors cursor-pointer ${
-                isActive
-                  ? 'bg-[var(--app-panel-2)] text-[var(--app-text)] font-medium'
-                  : 'text-[var(--app-text-muted)] hover:bg-[var(--app-panel-2)] hover:text-[var(--app-text-soft)]'
-              }`}
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                <span
-                  className={`h-[5px] w-[5px] flex-shrink-0 rounded-full ${
-                    isActive ? 'bg-[var(--app-accent)]' : 'bg-transparent'
-                  }`}
-                />
-                <span className="truncate">{session.title}</span>
-              </div>
-              <button
-                type="button"
-                aria-label="Excluir conversa"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDeleteSession(session.id)
-                }}
-                className="opacity-0 group-hover:opacity-100 rounded-[4px] p-1 text-[var(--app-text-muted)] hover:bg-[var(--app-panel)] hover:text-red-400 transition-opacity"
-              >
-                ✕
-              </button>
-            </div>
-          )
-        })}
-
-        {sessions.length === 0 && activeTitle === 'Nova conversa' && (
-          <div className="p-4 text-center text-[10px] text-[var(--app-text-muted)]">
-            Nenhuma conversa salva neste projeto.
-          </div>
+      {/* Lista de sessões */}
+      <nav className="flex-1 overflow-y-auto px-1.5 py-1.5" aria-label="Lista de conversas">
+        {filteredSessions.length === 0 && (
+          <p className="px-2 py-4 text-center text-(length:--text-xs) text-(--color-text-faint)">
+            {activeProject ? 'Nenhuma conversa ainda' : 'Abra um projeto para começar'}
+          </p>
         )}
-      </nav>
 
-      {/* Footer Branding */}
-      <div className="border-t border-[var(--app-border)] py-2 text-center text-[9px] text-[var(--app-text-muted)]">
-        Alexandria v1.0 • Desktop Standalone
-      </div>
+        {/* Exibe sessão ativa se ainda não persistida no SQLite */}
+        {activeTitle &&
+          activeTitle !== 'Nova conversa' &&
+          !sessions.some((s) => s.id === currentSessionId) && (
+            <div className="flex items-center justify-between rounded-(--radius-sm) bg-(--color-surface-raised) px-2 py-1.5 text-left mb-1">
+              <span className="truncate text-(length:--text-sm) text-(--color-text)">
+                {activeTitle}
+              </span>
+              <span className="size-1.5 rounded-full bg-(--color-accent-blue) animate-pulse" />
+            </div>
+          )}
+
+        <ul className="flex flex-col gap-0.5">
+          {filteredSessions.map((session) => {
+            const isActive = session.id === currentSessionId
+            return (
+              <li key={session.id} className="group relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelectSession(session.id)
+                    onToggleMobile?.()
+                  }}
+                  className={`flex w-full flex-col gap-0.5 rounded-(--radius-sm) px-2 py-1.5 text-left transition-colors ${
+                    isActive ? 'bg-(--color-surface-raised)' : 'hover:bg-(--color-surface)'
+                  }`}
+                  aria-current={isActive ? 'true' : undefined}
+                >
+                  <div className="flex items-center justify-between gap-2 pr-4">
+                    <span
+                      className={`truncate text-(length:--text-sm) ${
+                        isActive ? 'text-(--color-text)' : 'text-(--color-text-muted)'
+                      }`}
+                    >
+                      {session.title || 'Sem título'}
+                    </span>
+                    <span className="shrink-0 font-mono text-(length:--text-2xs) text-(--color-text-faint)">
+                      {formatRelativeTime(session.updatedAt)}
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  title="Excluir conversa"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteSession(session.id)
+                  }}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 rounded px-1 font-mono text-(length:--text-2xs) text-(--color-text-faint) hover:text-(--color-accent-red)"
+                >
+                  ✕
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
     </aside>
+  )
+}
+
+function ChevronDownIcon(props: React.SVGProps<SVGSVGElement>): ReactNode {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} {...props}>
+      <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function SearchIcon(props: React.SVGProps<SVGSVGElement>): ReactNode {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} {...props}>
+      <circle cx="7" cy="7" r="4.5" />
+      <path d="M11 11l3.5 3.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function PlusIcon(props: React.SVGProps<SVGSVGElement>): ReactNode {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} {...props}>
+      <path d="M8 3v10M3 8h10" strokeLinecap="round" />
+    </svg>
   )
 }
 

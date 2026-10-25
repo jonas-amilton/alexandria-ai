@@ -13,6 +13,7 @@ interface SettingsModalProps {
   open: boolean
   status: SettingsStatus | null
   activeProjectPath?: string
+  initialTab?: SettingsTab
   onClose: () => void
   onUpdateSettings: (provider: ProviderId, model?: string) => Promise<SettingsStatus>
   onSaveApiKey: (provider: ProviderId, apiKey: string) => Promise<SettingsStatus>
@@ -26,12 +27,13 @@ export default function SettingsModal({
   open,
   status,
   activeProjectPath,
+  initialTab,
   onClose,
   onUpdateSettings,
   onSaveApiKey,
   onClearApiKey
 }: SettingsModalProps): ReactNode {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('openrouter')
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab ?? 'openrouter')
   const [selectedProvider, setSelectedProvider] = useState<ProviderId | null>(null)
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [showKey, setShowKey] = useState(false)

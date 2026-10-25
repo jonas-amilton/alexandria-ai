@@ -28,6 +28,9 @@ function App(): ReactNode {
   const [skillsModalOpen, setSkillsModalOpen] = useState(false)
   const [graphModalOpen, setGraphModalOpen] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'openrouter' | 'deepseek' | 'mcp'>(
+    'openrouter'
+  )
 
   // ── Settings & Projects state ───────────────────────────────────────────
 
@@ -202,23 +205,29 @@ function App(): ReactNode {
       <main className="flex min-w-0 flex-1 flex-col bg-[var(--app-bg)]">
         {/* Header */}
         <ChatHeader
-          title={chat.conversationTitle}
-          modelName={settingsStatus?.model ?? MODEL_NAME}
-          providerLabel={
-            settingsStatus?.provider ? PROVIDERS[settingsStatus.provider].label : 'OpenRouter'
-          }
-          isFreeModel={Boolean(settingsStatus?.model && settingsStatus.model.endsWith(':free'))}
-          onOpenSettings={() => setSettingsModalOpen(true)}
+          projectName={activeProject?.name || 'Projeto'}
+          sessionTitle={chat.conversationTitle}
+          onOpenCodeGraph={() => setGraphModalOpen(true)}
+          onOpenSkills={() => setSkillsModalOpen(true)}
+          onOpenMemory={() => setMemoryModalOpen(true)}
+          onOpenMcp={() => {
+            setSettingsInitialTab('mcp')
+            setSettingsModalOpen(true)
+          }}
+          onOpenSettings={() => {
+            setSettingsInitialTab('openrouter')
+            setSettingsModalOpen(true)
+          }}
           onToggleMobileMenu={() => setMobileDrawerOpen(true)}
         />
 
         {/* Error banner */}
         {displayError !== null && (
-          <div className="flex-shrink-0 border-b border-red-900/60 bg-red-950/30 px-5 py-2 text-[11px] text-red-300 lg:px-6">
+          <div className="flex-shrink-0 border-b border-(--color-accent-red) bg-red-950/30 px-5 py-2 font-mono text-(length:--text-xs) text-(--color-accent-red) lg:px-6">
             {displayError}
             <button
               type="button"
-              className="ml-3 text-red-400 transition-colors hover:text-red-200"
+              className="ml-3 text-(--color-text) underline hover:text-(--color-accent-red)"
               onClick={() => {
                 chat.clearError()
               }}
@@ -233,6 +242,7 @@ function App(): ReactNode {
           messages={chat.messages}
           streamingContent={chat.streamingContent}
           toolActivity={chat.toolActivity}
+          isStreaming={chat.isLoading}
           onFillInput={(text) => {
             chat.setMessageInput(text)
           }}
@@ -241,9 +251,6 @@ function App(): ReactNode {
         {/* Composer */}
         <ChatComposer
           value={chat.messageInput}
-          disabled={chat.isLoading}
-          isLoading={chat.isLoading}
-          agentMode={chat.agentMode}
           onChange={chat.setMessageInput}
           onSubmit={() => {
             void chat.handleSend()
@@ -251,7 +258,16 @@ function App(): ReactNode {
           onCancel={() => {
             void chat.handleCancel()
           }}
+          agentMode={chat.agentMode}
           onToggleAgentMode={chat.toggleAgentMode}
+          isStreaming={chat.isLoading}
+          isLoading={chat.isLoading}
+          disabled={chat.isLoading}
+          isProjectOpen={Boolean(activeProject)}
+          modelLabel={settingsStatus?.model ?? MODEL_NAME}
+          contextWindowLabel={
+            settingsStatus?.provider ? PROVIDERS[settingsStatus.provider].label : 'OpenRouter'
+          }
           onKeyDown={chat.handleKeyDown}
         />
       </main>
@@ -276,9 +292,11 @@ function App(): ReactNode {
 
       {/* Settings & Models modal */}
       <SettingsModal
+        key={`${settingsModalOpen ? 'open' : 'closed'}-${settingsInitialTab}`}
         open={settingsModalOpen}
         status={settingsStatus}
         activeProjectPath={activeProject?.path}
+        initialTab={settingsInitialTab}
         onClose={() => setSettingsModalOpen(false)}
         onUpdateSettings={async (provider, model) => {
           const res = await window.deepdesk.settings.update({ provider, model })

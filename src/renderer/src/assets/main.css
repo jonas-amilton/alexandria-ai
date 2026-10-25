@@ -1,19 +1,76 @@
 @import 'tailwindcss';
 
+@theme {
+  /* ============================================================
+     COR — paleta escura técnica e neutra (ardósia/chumbo)
+     Base em três camadas de profundidade: bg < panel < surface.
+     ============================================================ */
+  --color-bg: #0d0e11;
+  --color-panel: #14171d;
+  --color-surface: #1b1f27;
+  --color-surface-raised: #20242d;
+
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.14);
+
+  --color-text: #e4e6eb;
+  --color-text-muted: #8b919e;
+  --color-text-faint: #5b6270;
+
+  /* Acentos funcionais — pontuais, nunca decorativos */
+  --color-accent-blue: #5b9dd9;
+  --color-accent-emerald: #3ecf8e;
+  --color-accent-amber: #d9a441;
+  --color-accent-red: #e5534b;
+
+  /* Tipografia */
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
+
+  /* Escala compacta (grid de 8/12px) */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1rem;
+  --text-lg--line-height: 1.5rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+
+  /* Raio e sombra */
+  --radius-xs: 0.1875rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
 :root {
-  --app-bg: #050b14;
-  --app-panel: #0c1422;
-  --app-panel-2: #101a2b;
-  --app-panel-3: #162236;
-  --app-border: #1a2740;
-  --app-border-soft: #22314d;
-  --app-text: #edf2f7;
-  --app-text-soft: #97a3b6;
-  --app-text-muted: #5f6d82;
-  --app-accent: #785cf7;
-  --app-accent-hover: #866dff;
-  --app-success-bg: #133c2d;
-  --app-success-text: #30c483;
+  /* Aliases semânticos para compatibilidade total com as modais existentes */
+  --app-bg: #0d0e11;
+  --app-panel: #14171d;
+  --app-panel-2: #1b1f27;
+  --app-panel-3: #20242d;
+  --app-border: rgba(255, 255, 255, 0.08);
+  --app-border-soft: rgba(255, 255, 255, 0.14);
+  --app-text: #e4e6eb;
+  --app-text-soft: #8b919e;
+  --app-text-muted: #5b6270;
+  --app-accent: #5b9dd9;
+  --app-accent-hover: #72b0ea;
+  --app-success-bg: rgba(62, 207, 142, 0.12);
+  --app-success-text: #3ecf8e;
+
+  --border-hairline: rgba(255, 255, 255, 0.08);
+  --border-hairline-strong: rgba(255, 255, 255, 0.14);
+  --focus-ring: 0 0 0 1px #0d0e11, 0 0 0 3px #5b9dd9;
 }
 
 html,
@@ -21,22 +78,14 @@ body,
 #root {
   width: 100%;
   min-height: 100%;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
 }
 
 body {
   display: block;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top, rgba(34, 50, 82, 0.18), transparent 28%), var(--app-bg);
-  color: var(--app-text);
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
 }
 
 #root {
@@ -45,9 +94,10 @@ body {
   min-height: 100vh;
 }
 
-/* Scrollbar styling */
+/* Scrollbar técnica e discreta */
 ::-webkit-scrollbar {
   width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -55,10 +105,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1b2a40;
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #24344c;
+  background: rgba(255, 255, 255, 0.2);
 }
